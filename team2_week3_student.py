@@ -200,7 +200,41 @@ def research_assignment(assignment: dict, original_question: str) -> dict:
     #
     # This function should execute only ONE specialist. Do not loop over all
     # assignments here.
-    raise NotImplementedError("Complete TODO 1: research_assignment().")
+
+    agent = assignment["agent"]
+    objective = assignment["objective"]
+    output_fields = assignment["output_fields"]
+
+    response = tavily.search(
+            query=objective,
+            search_depth="advanced",
+            max_results=5)
+
+    results = response.get("results", [])
+
+    source_text = "\n\n".join(
+            f"Title: {result.get('title', 'Untitled')}\n"
+            f"URL: {result.get('url', '')}\n"
+            f"Content: {result.get('content', '')}"
+            for result in results
+        )
+
+    
+
+    model_response_text = deepseek.chat.completions.create(
+            model="deepseek-flash",
+            messages=[{"role": "user", "content": SPECIALIST_PROMPTS[agent]}],
+            temperature=0.3,
+        )
+
+    return {
+            "agent": agent,
+            "objective": objective,
+            "output_fields": output_fields,
+            "research": model_response_text,
+            "sources": source_text,
+        }
+
 
 
 def specialists_node(state: ResearchState) -> dict:
@@ -220,7 +254,14 @@ def specialists_node(state: ResearchState) -> dict:
     # - The specialists should execute independently.
     # - Do not call them one-by-one in a normal sequential for-loop.
     # - Week 4 will add the shared evidence store; do not build it here.
-    pass
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        futures = [
+            executor.submit(research_assignment, assignment, state["question"])
+            for assignment in state["assignments"]
+        ]
+
+        for future in as_completed(futures):
+            specialist_results.append(future.result())
 
     return {"specialist_results": specialist_results}
 
