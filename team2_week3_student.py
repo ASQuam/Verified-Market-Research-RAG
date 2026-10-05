@@ -18,6 +18,18 @@ Run:
     DEEPSEEK_API_KEY=your_key
 """
 
+EVIDENCE_FIELDS = [
+    "claim",
+    "source",
+    "url",
+    "publication_date",
+    "source_type",
+    "evidence",
+    "confidence",
+    "related_company",
+    "report_section",
+]
+
 import json
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -170,90 +182,55 @@ def supervisor_node(state: ResearchState) -> dict:
 # ---------------- Week 3 specialist execution ----------------
 def research_assignment(assignment: dict, original_question: str) -> dict:
     """Execute ONE specialist's assignment."""
-    # TODO 1:
-    # 1. Read:
-    #       agent = assignment["agent"]
-    #       objective = assignment["objective"]
-    #       output_fields = assignment["output_fields"]
-    #
-    # 2. Search Tavily using the specialist's objective.
-    #
-    # 3. Format the returned Tavily results into readable source text containing
-    #    title, URL, and content.
-    #
-    # 4. Call DeepSeek with SPECIALIST_PROMPTS[agent].
-    #    Give the model:
-    #       - the original question
-    #       - this specialist's objective
-    #       - requested output_fields
-    #       - Tavily source text
-    #
-    # 5. Return ONE dictionary in exactly this shape:
-    #
-    #    {
-    #        "agent": agent,
-    #        "objective": objective,
-    #        "output_fields": output_fields,
-    #        "research": model_response_text,
-    #        "sources": tavily_results,
-    #    }
-    #
-    # This function should execute only ONE specialist. Do not loop over all
-    # assignments here.
-
+    # 1. Read assignment metadata
     agent = assignment["agent"]
     objective = assignment["objective"]
     output_fields = assignment["output_fields"]
 
-    response = tavily.search(
-            query=objective,
-            search_depth="advanced",
-            max_results=5)
+    # 2. Search Tavily using the specialist's objective
+    tavily_response = tavily.search(query=objective, max_results=5)
+    tavily_results = tavily_response.get("results", [])
 
-    results = response.get("results", [])
+    # 3. Format Tavily results into readable source text
+    sources_text = ""
+    for idx, src in enumerate(tavily_results, 1):
+        title = src.get("title", "No Title")
+        url = src.get("url", "No URL")
+        content = src.get("content", "")
+        sources_text += f"Source [{idx}]: {title}\nURL: {url}\nContent: {content}\n\n"
 
-    source_text = "\n\n".join(
-            f"Title: {result.get('title', 'Untitled')}\n"
-            f"URL: {result.get('url', '')}\n"
-            f"Content: {result.get('content', '')}"
-            for result in results
-        )
+    # 4. Call DeepSeek with specialist prompt & context
+    prompt_text = f"""
+    Original User Question: {original_question}
+    Your Assigned Objective: {objective}
+    Requested Output Fields: {', '.join(output_fields)} Tavily Research Results:
+    {sources_text} Please provide a clear and concise research brief based on the sources provided above.
+    """
 
-    
+    system_prompt = SPECIALIST_PROMPTS.get(agent, "")
+    model_response = deepseek.chat.completions.create(
+        model="deepseek-flash",
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": prompt_text},
+        ],
+    )
+    research_text = model_response.choices[0].message.content
 
-    model_response_text = deepseek.chat.completions.create(
-            model="deepseek-flash",
-            messages=[{"role": "user", "content": SPECIALIST_PROMPTS[agent]}],
-            temperature=0.3,
-        )
-
+    # 5. Return formatted result
     return {
-            "agent": agent,
-            "objective": objective,
-            "output_fields": output_fields,
-            "research": model_response_text,
-            "sources": source_text,
-        }
-
+        "agent": agent,
+        "objective": objective,
+        "output_fields": output_fields,
+        "research": research_text,
+        "sources": tavily_results,
+    }
 
 
 def specialists_node(state: ResearchState) -> dict:
     """Run all three independent specialist assignments in parallel."""
     specialist_results = []
 
-    # TODO 2:
-    # Use ThreadPoolExecutor(max_workers=3).
-    #
-    # Submit research_assignment(assignment, state["question"]) once for each
-    # assignment in state["assignments"].
-    #
-    # Use as_completed(...) to collect the finished results and append each one
-    # to specialist_results.
-    #
-    # Important:
-    # - The specialists should execute independently.
-    # - Do not call them one-by-one in a normal sequential for-loop.
-    # - Week 4 will add the shared evidence store; do not build it here.
     with ThreadPoolExecutor(max_workers=3) as executor:
         futures = [
             executor.submit(research_assignment, assignment, state["question"])
@@ -261,7 +238,11 @@ def specialists_node(state: ResearchState) -> dict:
         ]
 
         for future in as_completed(futures):
-            specialist_results.append(future.result())
+            try:
+                result = future.result()
+                specialist_results.append(result)
+            except Exception as e:
+                st.error(f"Error during parallel specialist execution: {e}")
 
     return {"specialist_results": specialist_results}
 
@@ -316,3 +297,227 @@ if st.button("Research", type="primary") and question.strip():
                 st.write(f"**Objective:** {item.get('objective', '')}")
                 st.write(item.get("research", ""))
                 st.caption(f"{len(item.get('sources', []))} Tavily sources returned")
+
+"""
+ELP Week 4 — Team 2 Student Extension
+Evidence & Traceability + SQLite
+
+PASTE THIS FILE BELOW THE EXISTING Week 3 Team 2 CODE.
+
+Do not replace your Week 3 code. This file adds the Week 4 shared evidence
+layer and stores the shared evidence store in a small SQLite database.
+"""
+
+# ---------------- Week 4: Shared Evidence Store ----------------
+
+import sqlite3
+
+EVIDENCE_DB = "team2_evidence.db"
+
+
+
+def init_evidence_db():
+    """Create the Week 4 shared evidence table if it does not exist."""
+    with sqlite3.connect(EVIDENCE_DB) as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS evidence (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                claim TEXT NOT NULL,
+                source TEXT NOT NULL,
+                url TEXT NOT NULL,
+                publication_date TEXT,
+                source_type TEXT NOT NULL,
+                evidence TEXT NOT NULL,
+                confidence TEXT,
+                related_company TEXT,
+                report_section TEXT,
+                UNIQUE(claim, url)
+            )
+        """)
+        conn.commit()
+
+
+def save_evidence_records(records: list[dict]):
+    """Save validated specialist evidence to SQLite."""
+    if not records:
+        return
+
+    columns = ", ".join(EVIDENCE_FIELDS)
+    placeholders = ", ".join(f":{field}" for field in EVIDENCE_FIELDS)
+    sql = f"INSERT OR IGNORE INTO evidence ({columns}) VALUES ({placeholders})"
+
+    rows = [{field: record.get(field) for field in EVIDENCE_FIELDS} for record in records]
+
+    conn = sqlite3.connect(EVIDENCE_DB)
+    try:
+        with conn:
+            conn.executemany(sql, rows)
+    finally:
+        conn.close()
+
+
+def load_evidence_records() -> list[dict]:
+    """Read the shared evidence store back from SQLite."""
+    with sqlite3.connect(EVIDENCE_DB) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("SELECT * FROM evidence ORDER BY id").fetchall()
+        return [dict(row) for row in rows]
+
+
+init_evidence_db()
+
+
+EVIDENCE_SYSTEM_PROMPT = """
+You are the evidence extraction step in a business research workflow.
+
+Convert useful specialist research sources into structured Evidence Records.
+
+Return ONLY valid JSON in exactly this shape:
+{
+  "records": [
+    {
+      "claim": "...",
+      "source": "...",
+      "url": "...",
+      "publication_date": null,
+      "source_type": "web",
+      "evidence": "...",
+      "confidence": "high",
+      "related_company": null,
+      "report_section": null
+    }
+  ]
+}
+
+Rules:
+- claim = a factual statement directly supported by the source.
+- evidence = the passage that supports the claim.
+- source and url must come from the supplied Tavily result.
+- Do not guess a publication date.
+- confidence must be high, medium, or low.
+- Do not turn analysis or recommendations into facts.
+""".strip()
+
+
+def extract_specialist_evidence(specialist_results: list[dict]) -> list[dict]:
+    """Convert specialist source results into the shared Evidence Record format."""
+    records = []
+
+    # TODO 2 — EVIDENCE EXTRACTION
+    #
+    # For each specialist in specialist_results:
+    #   1. Read agent and objective.
+    #   2. Loop through specialist["sources"].
+    #   3. Build source_payload with:
+    #        agent, objective, title, url, content, published_date
+    #   4. Call call_model_json(EVIDENCE_SYSTEM_PROMPT, prompt).
+    #   5. Add every returned record to records.
+    #
+    # Every specialist must produce the SAME Evidence Record structure.
+    for specialist in specialist_results:
+        agent = specialist.get("agent")
+        objective = specialist.get("objective")
+
+        for source in specialist.get("sources", []):
+            source_payload = {
+                "agent": agent,
+                "objective": objective,
+                "title": source.get("title"),
+                "url": source.get("url"),
+                "content": source.get("content"),
+                "published_date": source.get("published_date"),
+            }
+
+            prompt = json.dumps(source_payload, ensure_ascii=False)
+            result = call_model_json(EVIDENCE_SYSTEM_PROMPT, prompt)
+
+            for record in result.get("records", []):
+                records.append(record)
+
+    return records
+
+
+def validate_shared_evidence(records: list[dict]) -> list[dict]:
+    """Validate records and remove exact duplicate claim/source pairs."""
+    required = ["claim", "source", "url", "publication_date", "source_type", "evidence"]
+
+    validated = []
+
+    # TODO 3 — VALIDATION + DUPLICATES
+    #
+    # Keep only dictionaries with non-empty:
+    #   claim, source, url, source_type, evidence
+    #
+    # Remove exact duplicates using:
+    #   (claim.lower(), url)
+    #
+    # Hint: use a set called seen.
+    pass
+
+    return validated
+
+
+def evidence_store_node(state: ResearchState) -> dict:
+    """Week 4: build and persist the shared evidence store."""
+    # TODO 4 — CONNECT SPECIALISTS TO SHARED STORE + DATABASE
+    #
+    # 1. Extract records from state["specialist_results"].
+    # 2. Validate them.
+    # 3. Save validated records to SQLite.
+    # 4. Return {"evidence_records": ...}.
+    pass
+
+
+def build_week4_graph():
+    """
+    Extend the existing Week 3 Team 2 flow:
+
+    Question -> Supervisor -> Specialist Agents -> Evidence Records -> SQLite Store
+    """
+    graph = StateGraph(Week4ResearchState)
+
+    # TODO 5 — GRAPH CONNECTION
+    #
+    # Reuse:
+    #   supervisor_node
+    #   specialists_node
+    #
+    # Add:
+    #   evidence_store_node
+    #
+    # Connect:
+    #   START -> supervise -> specialists -> evidence_store -> END
+    pass
+
+
+week4_graph = build_week4_graph()
+
+
+# ---------------- Week 4 UI ----------------
+
+st.divider()
+st.subheader("Week 4 — Shared Evidence Store")
+st.caption("Specialist research → Evidence Records → SQLite Shared Store")
+
+if st.button("Build Shared Evidence Store", type="primary") and question.strip():
+    week4_state = {
+        "question": question.strip(),
+        "assignments": [],
+        "specialist_results": [],
+        "evidence_records": [],
+    }
+
+    try:
+        with st.spinner("Running specialists and building the shared evidence store..."):
+            evidence_result = week4_graph.invoke(week4_state)
+    except Exception as error:
+        st.error(f"The Week 4 evidence workflow could not finish: {error}")
+    else:
+        st.subheader("New Evidence Records")
+        st.json(evidence_result["evidence_records"])
+
+        stored_records = load_evidence_records()
+        st.subheader("Shared Evidence Store (SQLite)")
+        st.dataframe(stored_records, use_container_width=True)
+        st.caption(f"{len(stored_records)} evidence records stored in {EVIDENCE_DB}")
+
