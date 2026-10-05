@@ -123,6 +123,9 @@ class ResearchState(TypedDict):
     assignments: list[dict]
     specialist_results: list[dict]
 
+class Week4ResearchState(ResearchState):
+    evidence_records: list[dict]
+
 
 def call_model_json(system_prompt: str, user_text: str) -> dict:
     response = deepseek.chat.completions.create(
@@ -295,17 +298,12 @@ if st.button("Research", type="primary") and question.strip():
         ):
             with st.expander(item.get("agent", "Specialist"), expanded=True):
                 st.write(f"**Objective:** {item.get('objective', '')}")
-                st.write(item.get("research", ""))
+                st.markdown(item.get("research", "").replace("$", "\\$"))
                 st.caption(f"{len(item.get('sources', []))} Tavily sources returned")
 
 """
 ELP Week 4 — Team 2 Student Extension
 Evidence & Traceability + SQLite
-
-PASTE THIS FILE BELOW THE EXISTING Week 3 Team 2 CODE.
-
-Do not replace your Week 3 code. This file adds the Week 4 shared evidence
-layer and stores the shared evidence store in a small SQLite database.
 """
 
 # ---------------- Week 4: Shared Evidence Store ----------------
@@ -399,73 +397,77 @@ Rules:
 """.strip()
 
 
+def extract_from_source(agent: str, objective: str, source: dict) -> list[dict]:
+    """Extract Evidence Records from ONE Tavily source."""
+    source_payload = {
+        "agent": agent,
+        "objective": objective,
+        "title": source.get("title"),
+        "url": source.get("url"),
+        "content": (source.get("content") or "")[:6000],
+        "published_date": source.get("published_date"),
+    }
+    prompt = json.dumps(source_payload, ensure_ascii=False)
+
+    try:
+        result = call_model_json(EVIDENCE_SYSTEM_PROMPT, prompt)
+    except Exception:
+        return []  # skip a bad source instead of failing the whole run
+
+    return [r for r in result.get("records", []) if isinstance(r, dict)]
+
+
 def extract_specialist_evidence(specialist_results: list[dict]) -> list[dict]:
     """Convert specialist source results into the shared Evidence Record format."""
     records = []
 
-    # TODO 2 — EVIDENCE EXTRACTION
-    #
-    # For each specialist in specialist_results:
-    #   1. Read agent and objective.
-    #   2. Loop through specialist["sources"].
-    #   3. Build source_payload with:
-    #        agent, objective, title, url, content, published_date
-    #   4. Call call_model_json(EVIDENCE_SYSTEM_PROMPT, prompt).
-    #   5. Add every returned record to records.
-    #
-    # Every specialist must produce the SAME Evidence Record structure.
-    for specialist in specialist_results:
-        agent = specialist.get("agent")
-        objective = specialist.get("objective")
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        futures = [
+            executor.submit(
+                extract_from_source,
+                specialist.get("agent"),
+                specialist.get("objective"),
+                source,
+            )
+            for specialist in specialist_results
+            for source in specialist.get("sources", [])
+        ]
 
-        for source in specialist.get("sources", []):
-            source_payload = {
-                "agent": agent,
-                "objective": objective,
-                "title": source.get("title"),
-                "url": source.get("url"),
-                "content": source.get("content"),
-                "published_date": source.get("published_date"),
-            }
-
-            prompt = json.dumps(source_payload, ensure_ascii=False)
-            result = call_model_json(EVIDENCE_SYSTEM_PROMPT, prompt)
-
-            for record in result.get("records", []):
-                records.append(record)
+        for future in as_completed(futures):
+            records.extend(future.result())
 
     return records
 
 
 def validate_shared_evidence(records: list[dict]) -> list[dict]:
     """Validate records and remove exact duplicate claim/source pairs."""
-    required = ["claim", "source", "url", "publication_date", "source_type", "evidence"]
+    required = ["claim", "source", "url", "source_type", "evidence"]
 
     validated = []
+    seen = set()
 
-    # TODO 3 — VALIDATION + DUPLICATES
-    #
-    # Keep only dictionaries with non-empty:
-    #   claim, source, url, source_type, evidence
-    #
-    # Remove exact duplicates using:
-    #   (claim.lower(), url)
-    #
-    # Hint: use a set called seen.
-    pass
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+
+        if not all(str(record.get(field) or "").strip() for field in required):
+            continue
+
+        key = (record["claim"].lower(), record["url"])
+        if key in seen:
+            continue
+
+        seen.add(key)
+        validated.append(record)
 
     return validated
 
-
-def evidence_store_node(state: ResearchState) -> dict:
+def evidence_store_node(state: Week4ResearchState) -> dict:
     """Week 4: build and persist the shared evidence store."""
-    # TODO 4 — CONNECT SPECIALISTS TO SHARED STORE + DATABASE
-    #
-    # 1. Extract records from state["specialist_results"].
-    # 2. Validate them.
-    # 3. Save validated records to SQLite.
-    # 4. Return {"evidence_records": ...}.
-    pass
+    records = extract_specialist_evidence(state["specialist_results"])
+    validated = validate_shared_evidence(records)
+    save_evidence_records(validated)
+    return {"evidence_records": validated}
 
 
 def build_week4_graph():
@@ -476,18 +478,16 @@ def build_week4_graph():
     """
     graph = StateGraph(Week4ResearchState)
 
-    # TODO 5 — GRAPH CONNECTION
-    #
-    # Reuse:
-    #   supervisor_node
-    #   specialists_node
-    #
-    # Add:
-    #   evidence_store_node
-    #
-    # Connect:
-    #   START -> supervise -> specialists -> evidence_store -> END
-    pass
+    graph.add_node("supervise", supervisor_node)
+    graph.add_node("specialists", specialists_node)
+    graph.add_node("evidence_store", evidence_store_node)
+
+    graph.add_edge(START, "supervise")
+    graph.add_edge("supervise", "specialists")
+    graph.add_edge("specialists", "evidence_store")
+    graph.add_edge("evidence_store", END)
+
+    return graph.compile()
 
 
 week4_graph = build_week4_graph()
