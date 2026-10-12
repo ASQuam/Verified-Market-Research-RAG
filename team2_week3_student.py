@@ -521,3 +521,222 @@ if st.button("Build Shared Evidence Store", type="primary") and question.strip()
         st.dataframe(stored_records, use_container_width=True)
         st.caption(f"{len(stored_records)} evidence records stored in {EVIDENCE_DB}")
 
+
+# UTC timestamp is used when each report is stored in SQLite.
+from datetime import datetime, timezone
+
+# ---------------- Week 5: Save reports in SQLite ----------------
+
+# WHAT THIS DOES — DATABASE SETUP: Creates reports table if missing; preserves all Week 4 evidence rows.
+def init_report_db():
+    with sqlite3.connect(EVIDENCE_DB) as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS reports (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                question TEXT NOT NULL,
+                report_markdown TEXT NOT NULL,
+                evidence_count INTEGER NOT NULL,
+                created_at TEXT NOT NULL
+            )
+        """)
+        conn.commit()
+
+
+# WHAT THIS DOES — DATABASE WRITE: Saves question, generated markdown, evidence count, timestamp; returns report ID.
+def save_report(question: str, report_markdown: str, evidence_count: int) -> int:
+    """Save the synthesized report and return its database id."""
+    # STUDENT: Replace the `pass` in this function with real code.
+    # TODO 0 — REPORT PERSISTENCE
+    # Insert question, report_markdown, evidence_count, and a current UTC timestamp
+    # into reports using parameterized SQL. Return cursor.lastrowid.
+    created_at = datetime.now(timezone.utc).isoformat() 
+    with sqlite3.connect(EVIDENCE_DB) as conn:
+        cursor = conn.execute(
+            "INSERT INTO reports(question, report_markdown, evidence_count, created_at ) "
+            "VALUES (?, ?, ?, ?)",
+            (question, report_markdown, evidence_count, created_at))
+    return cursor.lastrowid
+
+
+# WHAT THIS DOES — DATABASE READ: Loads previously generated reports, most recent first, for the UI.
+def load_reports() -> list[dict]:
+    with sqlite3.connect(EVIDENCE_DB) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("SELECT * FROM reports ORDER BY id DESC").fetchall()
+        return [dict(row) for row in rows]
+
+
+init_report_db()  # Ensure reports table exists before any report is saved.
+
+
+# SHARED OUTPUT CONTRACT: Both teams use the SAME nine model-written sections;
+# Sources / References is appended in Python as section number ten.
+REPORT_SECTION_KEYS = [
+    ("executive_summary", "Executive Summary"),
+    ("key_findings", "Key Findings"),
+    ("competitor_comparison", "Competitor Comparison"),
+    ("market_industry_trends", "Market / Industry Trends"),
+    ("emerging_technologies", "Emerging Technologies"),
+    ("regulatory_developments", "Regulatory Developments"),
+    ("risks_opportunities", "Risks / Opportunities"),
+    ("recommended_next_steps", "Recommended Next Steps"),
+    ("limitations_information_gaps", "Limitations / Information Gaps"),
+    ("sources_references", "Sources / References"),
+]
+
+
+# MODEL INSTRUCTIONS: The model must work from evidence only and return structured JSON.
+# Week 6, not this file, handles independent citation validation and report review.
+SYNTHESIS_SYSTEM_PROMPT = """
+You are the SYNTHESIS AGENT in a multi-agent business research system.
+
+Use ONLY the supplied Shared Evidence Store to create ONE coherent report.
+Return ONLY valid JSON with exactly these keys:
+{
+  "executive_summary": "...",
+  "key_findings": "...",
+  "competitor_comparison": "...",
+  "market_industry_trends": "...",
+  "emerging_technologies": "...",
+  "regulatory_developments": "...",
+  "risks_opportunities": "...",
+  "recommended_next_steps": "...",
+  "limitations_information_gaps": "..."
+}
+
+Rules:
+- Cite factual statements using evidence labels such as [E1].
+- Reorganize findings by business topic, not agent name.
+- The report should read as if one coordinated team produced it.
+- Do not invent facts, dates, metrics, source names, URLs, or citations.
+- Clearly distinguish facts, analysis, recommendations, and uncertainty.
+- If evidence is insufficient, say so.
+- Do NOT add the Reviewer/Critic today. That is Week 6.
+""".strip()
+
+
+# WHAT THIS DOES — EVIDENCE PREP: Assigns [E1], [E2] labels to this run’s evidence, keeps sources and excerpts.
+def build_evidence_packet(evidence_records: list[dict]) -> list[dict]:
+    packet = []
+    for index, record in enumerate(evidence_records, start=1):
+        packet.append({
+            "evidence_id": f"E{index}",
+            "claim": record.get("claim"),
+            "source": record.get("source"),
+            "url": record.get("url"),
+            "publication_date": record.get("publication_date"),
+            "source_type": record.get("source_type"),
+            "evidence": record.get("evidence"),
+            "confidence": record.get("confidence"),
+            "related_company": record.get("related_company"),
+            "report_section": record.get("report_section"),
+        })
+    return packet
+
+
+# WHAT THIS DOES — TEAM 2 SYNTHESIS AGENT: Combines all specialist evidence into ONE unified report.
+def synthesize_report(question: str, evidence_records: list[dict]) -> dict:
+    """Merge all specialist evidence into the common report structure."""
+
+    # Build the numbered evidence packet.
+    evidence_packet = build_evidence_packet(evidence_records)
+    # Put the research question + shared evidence into the prompt.
+    prompt = (
+        f"Research question:\n{question}\n\n"
+        f"Evidence (cite using the [E#] labels):\n{evidence_packet}\n\n"
+        f"Return a JSON object with these keys: {', '.join(REPORT_SECTION_KEYS)}"
+    )
+    # Call call_model_json(SYNTHESIS_SYSTEM_PROMPT, prompt)
+    report = call_model_json(SYNTHESIS_SYSTEM_PROMPT, prompt)
+
+    # Make sure all REPORT_SECTION_KEYS exist
+    if not isinstance(report, dict):
+        report = {}
+
+    report = {
+        key: report.get(key) or "Insufficient evidence found for this section."
+        for key in REPORT_SECTION_KEYS
+    }
+
+    # return the report dict
+    return report
+
+
+# WHAT THIS DOES — REFERENCES: Creates citation legend from original URLs, not invented model references.
+def build_references(evidence_records: list[dict]) -> str:
+    lines = []
+    for index, record in enumerate(evidence_records, start=1):
+        source = record.get("source") or "Unknown source"
+        url = record.get("url") or "No URL"
+        date = record.get("publication_date") or "Date unavailable"
+        lines.append(f"- [E{index}] {source} — {date} — {url}")
+    return "\n".join(lines) if lines else "No source records were available."
+
+
+# WHAT THIS DOES — REPORT FORMAT: Assembles nine model sections and the tenth Sources / References section.
+def render_report_markdown(report: dict, evidence_records: list[dict]) -> str:
+    blocks = []
+    for key, title in REPORT_SECTION_KEYS:
+        blocks.append(f"## {title}\n\n{report.get(key, '')}")
+    blocks.append("## Sources / References\n\n" + build_references(evidence_records))
+    return "\n\n".join(blocks)
+
+
+class Week5ResearchState(Week4ResearchState):
+    report: dict
+    report_markdown: str
+    report_id: int
+
+
+# WHAT THIS DOES — TEAM 2 GRAPH NODE: Runs synthesis, formats it, saves to SQLite.
+def synthesis_node(state):
+    """Synthesize only after all shared evidence has been produced."""
+    # TODO 3 — CONNECT SHARED EVIDENCE TO SYNTHESIS
+    # 1. Read state["evidence_records"].
+    # 2. Stop with a helpful error if empty.
+    # 3. Call synthesize_report(...).
+    # 4. Render markdown.
+    # 5. Save the report to SQLite.
+    # 6. Return report, report_markdown, and report_id.
+    
+
+
+# WORKFLOW WIRING: Reuses Week 3/4 nodes and adds Week 5 report/synthesis at the end.
+def build_week5_graph():
+    """Question -> Supervisor -> Specialists -> Shared Evidence -> Synthesis -> END"""
+    graph = StateGraph(Week5ResearchState)
+
+    graph.add_node("supervise", supervisor_node)
+    graph.add_node("specialists", specialists_node)
+    graph.add_node("evidence_store", evidence_store_node)
+    graph.add_node("synthesis", synthesis_node)
+
+    graph.add_edge(START, "supervise")
+    graph.add_edge("supervise", "specialists")
+    graph.add_edge("specialists", "evidence_store")
+    graph.add_edge("evidence_store", "synthesis")
+    graph.add_edge("synthesis", END)
+
+    return graph.compile()
+
+
+
+week5_graph = build_week5_graph()
+
+
+# ---------------- Week 5 UI ----------------
+# UI: Adds a separate Week 5 button and shows the report + evidence + saved history.
+# A full run invokes Week 3 planning/research, Week 4 evidence, THEN Week 5 writing.
+
+st.divider()
+st.subheader("Week 5 — Multi-Agent Synthesis Pipeline")
+st.caption("Question → Supervisor → Specialists → Shared Evidence → Synthesis Agent → Report")
+
+if st.button("Run Full Synthesis Pipeline", type="primary") and question.strip():
+    # TODO 5 — RUN THE COMPLETE PIPELINE
+    # Create the initial state, invoke week5_graph, and display:
+    #   - the synthesized report with st.markdown(...)
+    #   - the shared evidence used
+    #   - saved reports from SQLite
+    pass
+
