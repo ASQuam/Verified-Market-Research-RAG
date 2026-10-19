@@ -301,10 +301,7 @@ if st.button("Research", type="primary") and question.strip():
                 st.markdown(item.get("research", "").replace("$", "\\$"))
                 st.caption(f"{len(item.get('sources', []))} Tavily sources returned")
 
-"""
-ELP Week 4 — Team 2 Student Extension
-Evidence & Traceability + SQLite
-"""
+
 
 # ---------------- Week 4: Shared Evidence Store ----------------
 
@@ -584,6 +581,8 @@ REPORT_SECTION_KEYS = [
     ("sources_references", "Sources / References"),
 ]
 
+MODEL_SECTION_KEYS = [key for key, _title in REPORT_SECTION_KEYS if key != "sources_references"]
+
 
 # MODEL INSTRUCTIONS: The model must work from evidence only and return structured JSON.
 # Week 6, not this file, handles independent citation validation and report review.
@@ -634,31 +633,30 @@ def build_evidence_packet(evidence_records: list[dict]) -> list[dict]:
     return packet
 
 
-# WHAT THIS DOES — TEAM 2 SYNTHESIS AGENT: Combines all specialist evidence into ONE unified report.
 def synthesize_report(question: str, evidence_records: list[dict]) -> dict:
     """Merge all specialist evidence into the common report structure."""
-
-    # Build the numbered evidence packet.
+    # 1. Build the numbered evidence packet
     evidence_packet = build_evidence_packet(evidence_records)
-    # Put the research question + shared evidence into the prompt.
+
+    # 2. Question + shared evidence into the prompt
     prompt = (
         f"Research question:\n{question}\n\n"
-        f"Evidence (cite using the [E#] labels):\n{evidence_packet}\n\n"
-        f"Return a JSON object with these keys: {', '.join(REPORT_SECTION_KEYS)}"
+        f"Shared Evidence Store (cite using evidence_id labels such as [E1]):\n"
+        f"{json.dumps(evidence_packet, ensure_ascii=False, indent=2)}"
     )
-    # Call call_model_json(SYNTHESIS_SYSTEM_PROMPT, prompt)
+
+    # 3. Call the model
     report = call_model_json(SYNTHESIS_SYSTEM_PROMPT, prompt)
 
-    # Make sure all REPORT_SECTION_KEYS exist
+    # 4. Make sure every model-written section exists
     if not isinstance(report, dict):
         report = {}
-
     report = {
         key: report.get(key) or "Insufficient evidence found for this section."
-        for key in REPORT_SECTION_KEYS
+        for key in MODEL_SECTION_KEYS
     }
 
-    # return the report dict
+    # 5. Return the report dict
     return report
 
 
@@ -673,10 +671,11 @@ def build_references(evidence_records: list[dict]) -> str:
     return "\n".join(lines) if lines else "No source records were available."
 
 
-# WHAT THIS DOES — REPORT FORMAT: Assembles nine model sections and the tenth Sources / References section.
 def render_report_markdown(report: dict, evidence_records: list[dict]) -> str:
     blocks = []
     for key, title in REPORT_SECTION_KEYS:
+        if key == "sources_references":
+            continue
         blocks.append(f"## {title}\n\n{report.get(key, '')}")
     blocks.append("## Sources / References\n\n" + build_references(evidence_records))
     return "\n\n".join(blocks)
@@ -688,16 +687,34 @@ class Week5ResearchState(Week4ResearchState):
     report_id: int
 
 
-# WHAT THIS DOES — TEAM 2 GRAPH NODE: Runs synthesis, formats it, saves to SQLite.
 def synthesis_node(state):
     """Synthesize only after all shared evidence has been produced."""
-    # TODO 3 — CONNECT SHARED EVIDENCE TO SYNTHESIS
-    # 1. Read state["evidence_records"].
-    # 2. Stop with a helpful error if empty.
-    # 3. Call synthesize_report(...).
-    # 4. Render markdown.
-    # 5. Save the report to SQLite.
-    # 6. Return report, report_markdown, and report_id.
+    # 1. Read evidence from state
+    evidence_records = state.get("evidence_records", [])
+
+    # 2. Stop with a helpful error if empty
+    if not evidence_records:
+        raise ValueError(
+            "synthesis_node got no evidence_records. Check that specialists_node "
+            "returned results and evidence_store_node wrote them to state."
+        )
+
+    # 3. Synthesize
+    question = state["question"]
+    report = synthesize_report(question, evidence_records)
+
+    # 4. Render markdown
+    report_markdown = render_report_markdown(report, evidence_records)
+
+    # 5. Save to SQLite
+    report_id = save_report(question, report_markdown, len(evidence_records))
+
+    # 6. Return the new state keys
+    return {
+        "report": report,
+        "report_markdown": report_markdown,
+        "report_id": report_id,
+    }
     
 
 
@@ -724,19 +741,36 @@ def build_week5_graph():
 week5_graph = build_week5_graph()
 
 
-# ---------------- Week 5 UI ----------------
-# UI: Adds a separate Week 5 button and shows the report + evidence + saved history.
-# A full run invokes Week 3 planning/research, Week 4 evidence, THEN Week 5 writing.
-
-st.divider()
-st.subheader("Week 5 — Multi-Agent Synthesis Pipeline")
-st.caption("Question → Supervisor → Specialists → Shared Evidence → Synthesis Agent → Report")
-
 if st.button("Run Full Synthesis Pipeline", type="primary") and question.strip():
-    # TODO 5 — RUN THE COMPLETE PIPELINE
-    # Create the initial state, invoke week5_graph, and display:
-    #   - the synthesized report with st.markdown(...)
-    #   - the shared evidence used
-    #   - saved reports from SQLite
-    pass
+    initial_state = {"question": question.strip()}
+
+    try:
+        with st.spinner("Running supervisor, specialists, and synthesis..."):
+            result = week5_graph.invoke(initial_state)
+    except ValueError as e:
+        st.error(f"Pipeline stopped: {e}")
+        st.stop()
+
+    # Synthesized report
+    st.success(f"Report saved (id {result['report_id']})")
+    st.markdown(result["report_markdown"])
+
+    # Shared evidence used
+    evidence = result.get("evidence_records", [])
+    with st.expander(f"Shared evidence used ({len(evidence)} records)"):
+        for i, rec in enumerate(evidence, start=1):
+            st.markdown(f"**[E{i}] {rec.get('title', 'Untitled')}**  \n{rec.get('url', 'no url')}")
+            st.caption((rec.get("content") or "")[:300])
+
+    # Saved reports from SQLite
+    with sqlite3.connect(EVIDENCE_DB) as conn:
+        rows = conn.execute(
+            "SELECT id, question, evidence_count, created_at "
+            "FROM reports ORDER BY id DESC LIMIT 10"
+        ).fetchall()
+    st.markdown("#### Saved reports")
+    st.dataframe(
+        [{"id": r[0], "question": r[1], "evidence": r[2], "created": r[3]} for r in rows],
+        use_container_width=True,
+    )
 
