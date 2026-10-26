@@ -1095,3 +1095,299 @@ if st.button("Run Reviewed Synthesis Pipeline", type="primary") and question.str
                 )
 
 
+import json
+
+W7_T2_GAP_PROMPT = """
+You are the existing supervisor's GAP AND CONFLICT CHECK, not a new agent.
+Given the user's research question and evidence store, identify at most ONE
+material research gap or meaningful contradiction that targeted research could fix.
+Return JSON ONLY:
+  {"needs_research": boolean, "reason": string,
+   "targeted_question": string, "conflicts": [string], "gaps": [string]}
+Missing evidence and genuinely conflicting facts matter; duplicate coverage
+alone does not require searching. Do not invent missing facts or resolve a
+conflict by guessing. Recommend NO further research when already adequate.
+""".strip()
+
+def week7_t2_find_gaps(state: dict) -> dict:
+    # Safe default: if anything goes wrong, recommend NO extra research
+    no_research = {
+        "needs_research": False,
+        "reason": "",
+        "targeted_question": "",
+        "conflicts": [],
+        "gaps": [],
+    }
+
+    # Package the original question and labeled evidence [E1], [E2]... for the gap check
+    prompt = json.dumps(
+        {
+            "question": state["question"],
+            "evidence": build_evidence_packet(state.get("evidence_records", [])),
+        },
+        ensure_ascii=False,
+        indent=2,
+    )
+
+    # Ask the supervisor's gap/conflict check; a failed call means no research, not a crash
+    try:
+        result = call_model_json(W7_T2_GAP_PROMPT, prompt)
+    except Exception as error:
+        return {
+            "gap_check": {**no_research, "reason": f"Gap check failed: {error}"},
+            "additional_research_performed": False,
+        }
+
+    # A response that isn't a dict is invalid, so it must not trigger research
+    if not isinstance(result, dict):
+        return {
+            "gap_check": {**no_research, "reason": "Gap check returned invalid JSON."},
+            "additional_research_performed": False,
+        }
+
+    # Clean up each field, falling back to safe defaults for anything malformed
+    targeted_question = str(result.get("targeted_question") or "").strip()
+    conflicts = result.get("conflicts")
+    gaps = result.get("gaps")
+
+    # Research only if the model said exactly true AND gave a question to search
+    needs_research = result.get("needs_research") is True and bool(targeted_question)
+
+    gap_check = {
+        "needs_research": needs_research,
+        "reason": str(result.get("reason") or "").strip(),
+        "targeted_question": targeted_question,
+        "conflicts": [str(c) for c in conflicts] if isinstance(conflicts, list) else [],
+        "gaps": [str(g) for g in gaps] if isinstance(gaps, list) else [],
+    }
+
+    # Research hasn't happened yet at this point, so this is always False here
+    return {"gap_check": gap_check, "additional_research_performed": False}
+
+def week7_t2_route(state: dict) -> str:
+    gap_check = state.get("gap_check") or {}
+    if gap_check.get("needs_research") is True and gap_check.get("targeted_question"):
+        return "additional"
+    return "synthesis"
+
+def week7_t2_additional_research(state: dict) -> dict:
+    old_evidence = state.get("evidence_records", [])
+    old_results = state.get("specialist_results", [])
+    targeted_question = (state.get("gap_check") or {}).get("targeted_question", "").strip()
+
+    # Safe result if the extra pass can't run: keep everything exactly as it was
+    unchanged = {
+        "evidence_records": old_evidence,
+        "specialist_results": old_results,
+        "additional_research_performed": False,
+        "new_evidence_count": 0,
+    }
+
+    # Nothing to search without a targeted question
+    if not targeted_question:
+        return unchanged
+
+    try:
+        # Mini state for ONE extra pass, using the targeted question instead of the original
+        mini_state = {"question": targeted_question}
+
+        # Reuse the existing supervisor to split the targeted question into 3 assignments
+        mini_state.update(supervisor_node(mini_state))
+
+        # Reuse the existing specialists to research those assignments in parallel
+        mini_state.update(specialists_node(mini_state))
+
+        # Reuse the existing evidence store to extract, validate, and save new records to SQLite
+        mini_state.update(evidence_store_node(mini_state))
+    except Exception:
+        # If the extra pass fails, fall back to the evidence we already had
+        return unchanged
+
+    # Merge old + new, old first, so existing [E#] labels keep their numbers;
+    # validate_shared_evidence also drops duplicate claim/url pairs across both passes
+    merged_evidence = validate_shared_evidence(old_evidence + mini_state["evidence_records"])
+
+    return {
+        "evidence_records": merged_evidence,
+        "specialist_results": old_results + mini_state["specialist_results"],
+        "additional_research_performed": True,
+        # Count only genuinely new records, after duplicates are removed
+        "new_evidence_count": len(merged_evidence) - len(old_evidence),
+    }
+
+
+class Week7ResearchState(Week6ResearchState):
+    gap_check: dict
+    additional_research_performed: bool
+    new_evidence_count: int
+
+# TODO 4 — WEEK 7 GRAPH
+# START -> supervise -> specialists -> evidence_store -> gap_check
+# gap_check -> synthesis (no missing evidence)
+# gap_check -> additional -> synthesis (at most one extra pass)
+# synthesis -> review -> END
+# Reuse EXISTING Team 2 nodes. Do not invent agents.
+def build_week7_graph():
+    graph = StateGraph(Week7ResearchState)
+
+    graph.add_node("supervise", supervisor_node)
+    graph.add_node("specialists", specialists_node)
+    graph.add_node("evidence_store", evidence_store_node)
+    graph.add_node("synthesis", synthesis_node)
+    graph.add_node("reviewer", reviewer_node)
+
+    # Gap Checking Nodes
+    graph.add_node("gap_check", week7_t2_find_gaps)
+    graph.add_node("additional", week7_t2_additional_research)
+
+    graph.add_edge(START, "supervise")
+    graph.add_edge("supervise", "specialists")
+    graph.add_edge("specialists", "evidence_store")
+    graph.add_edge("evidence_store", "gap_check")
+
+    # conditional edge construction off gap checking
+    graph.add_conditional_edges(
+        "gap_check",
+        week7_t2_route,
+        {"additional": "additional", "synthesis": "synthesis"},
+    )
+
+    # either skips additional or goes past synthesis
+    graph.add_edge("additional", "synthesis")
+
+    graph.add_edge("synthesis", "reviewer")
+    graph.add_edge("reviewer", END)
+
+    return graph.compile()
+
+
+week7_graph = build_week7_graph()
+
+import time
+
+st.divider()
+st.subheader("Week 7 — Interactive Research Loop")
+st.caption(
+    "Question → Supervisor → Specialists → Evidence Store → Gap/Conflict Check "
+    "→ (one extra research pass) → Synthesis → Reviewer"
+)
+
+# Readable progress messages for each graph node
+W7_NODE_LABELS = {
+    "supervise": "Supervisor assigned specialist tasks",
+    "specialists": "Specialists finished research",
+    "evidence_store": "Evidence extracted and saved to SQLite",
+    "gap_check": "Gap/conflict check complete",
+    "additional": "Additional research pass complete",
+    "synthesis": "Draft report synthesized",
+    "reviewer": "Review complete",
+}
+
+if st.button("Run Week 7 Research Loop", type="primary") and question.strip():
+    # Same starting state as Week 6, plus the three Week 7 fields
+    week7_state = {
+        "question": question.strip(),
+        "assignments": [],
+        "specialist_results": [],
+        "evidence_records": [],
+        "gap_check": {},
+        "additional_research_performed": False,
+        "new_evidence_count": 0,
+    }
+
+    # Run the graph step by step, showing live progress and timing for each node
+    result = None
+    start = time.time()
+    with st.status("Running Week 7 research loop...", expanded=True) as status:
+        try:
+            result = dict(week7_state)
+            for update in week7_graph.stream(week7_state, stream_mode="updates"):
+                for node_name, node_output in update.items():
+                    status.write(f"{W7_NODE_LABELS.get(node_name, node_name)} ({time.time() - start:.0f}s)")
+                    if node_output:
+                        result.update(node_output)  # build up the final state as nodes finish
+            status.update(label=f"Finished in {time.time() - start:.0f}s", state="complete", expanded=False)
+        except Exception as error:
+            status.update(label="Pipeline failed", state="error")
+            st.error(f"The Week 7 research loop could not finish: {error}")
+            result = None
+
+    if result is not None:
+        review = result.get("review", {})
+        gap_check = result.get("gap_check", {})
+        passed = review.get("overall_status") == "PASS"
+
+        # Summary row: verdict, evidence size, extra research, revision
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Review", "PASS" if passed else "NOT APPROVED")
+        c2.metric("Evidence records", len(result.get("evidence_records", [])))
+        c3.metric("New from extra pass", result.get("new_evidence_count", 0))
+        c4.metric("Revision", "Yes" if result.get("revision_performed") else "No")
+
+        tab_report, tab_gaps, tab_review, tab_evidence = st.tabs(
+            ["Report", "Gap check", "Reviewer", "Evidence"]
+        )
+
+        # Report: shown openly ONLY on PASS; otherwise labeled unapproved in an expander
+        with tab_report:
+            report_md = result.get("final_report_markdown", "").replace("$", "\\$")
+            if passed:
+                st.success("Report approved by the reviewer.")
+                st.markdown(report_md)
+            else:
+                st.error("UNAPPROVED: this report did not pass review and should not be treated as trusted.")
+                with st.expander("Unapproved draft (for inspection only)"):
+                    st.markdown(report_md)
+
+        # Gap/conflict notes and whether the extra research pass ran
+        with tab_gaps:
+            if result.get("additional_research_performed"):
+                st.info(
+                    f"Additional research performed on: *{gap_check.get('targeted_question', '')}* "
+                    f"({result.get('new_evidence_count', 0)} new evidence records added)"
+                )
+            else:
+                st.caption("No additional research was needed or performed.")
+
+            st.write(f"**Reason:** {gap_check.get('reason') or 'No reason given.'}")
+
+            st.markdown("**Gaps**")
+            for g in gap_check.get("gaps") or ["None found."]:
+                st.markdown(f"- {g}")
+
+            st.markdown("**Conflicts**")
+            for c in gap_check.get("conflicts") or ["None found."]:
+                st.markdown(f"- {c}")
+
+        # Reviewer details for debugging: scorecard, issues, gaps, initial review
+        with tab_review:
+            cols = st.columns(3)
+            for i, (name, score) in enumerate(review.get("scores", {}).items()):
+                # Delta shows distance from the pass bar of 7 (green above, red below)
+                cols[i % 3].metric(name.replace("_", " ").title(), f"{score}/10", delta=score - 7)
+
+            st.markdown("**Issues**")
+            for issue in review.get("issues") or ["No issues reported."]:
+                if isinstance(issue, dict):
+                    st.markdown(
+                        f"- **{issue.get('category', '')}** ({issue.get('section', 'overall')}): "
+                        f"{issue.get('explanation', '')}  \n  *Suggested fix:* {issue.get('suggested_fix', '')}"
+                    )
+                else:
+                    st.markdown(f"- {issue}")
+
+            st.markdown("**Research gaps**")
+            for gap in review.get("research_gaps") or ["No research gaps reported."]:
+                st.markdown(f"- {gap}")
+
+            if result.get("revision_performed"):
+                with st.expander("Initial review (before revision)"):
+                    st.json(result.get("initial_review", {}))
+
+        # Shared evidence, numbered to match the [E#] citations in the report
+        with tab_evidence:
+            for i, rec in enumerate(result.get("evidence_records", []), start=1):
+                st.markdown(
+                    f"**[E{i}]** {rec.get('claim', '')}  \n"
+                    f"*{rec.get('source', 'Unknown source')}* — {rec.get('url', 'no url')}"
+                )
