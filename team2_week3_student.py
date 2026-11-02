@@ -1391,3 +1391,42 @@ if st.button("Run Week 7 Research Loop", type="primary") and question.strip():
                     f"**[E{i}]** {rec.get('claim', '')}  \n"
                     f"*{rec.get('source', 'Unknown source')}* — {rec.get('url', 'no url')}"
                 )
+
+
+def _w8_t2_ready(result):
+    """Conservative approval gate: every check must pass, otherwise the report is NOT approved."""
+    # Result must be a dict
+    if not isinstance(result, dict):
+        return False
+
+    # Reviewer must have said PASS
+    review = result.get("review")
+    if not isinstance(review, dict) or review.get("overall_status") != "PASS":
+        return False
+
+    # Final report must contain real text
+    final_md = result.get("final_report_markdown")
+    if not isinstance(final_md, str) or not final_md.strip():
+        return False
+
+    # At least one evidence record
+    evidence = result.get("evidence_records")
+    if not isinstance(evidence, list) or len(evidence) < 1:
+        return False
+
+    # At least three specialist outputs
+    specialists = result.get("specialist_results")
+    if not isinstance(specialists, list) or len(specialists) < 3:
+        return False
+
+    # Extra check: all three roles actually produced output (not just any 3 results)
+    roles = {s.get("agent") for s in specialists if isinstance(s, dict)}
+    if not {"Competitor", "Market", "Tech/Regulatory"} <= roles:
+        return False
+
+    # Extra check: all 10 report headings are present
+    if not all(f"## {title}" in final_md for _key, title in REPORT_SECTION_KEYS):
+        return False
+
+    # Every check passed
+    return True
