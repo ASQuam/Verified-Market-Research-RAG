@@ -1,0 +1,8 @@
+# Streamlit theme for the Team 2 app. Keep this file in a ".streamlit" folder next to team2_final_app.py.
+[theme]
+base = "light"
+primaryColor = "#1F4D3A"
+backgroundColor = "#F3F5F2"
+secondaryBackgroundColor = "#E3EAE5"
+textColor = "#1B2A24"
+font = "sans serif"

@@ -40,7 +40,7 @@ from tavily import TavilyClient                 # Web search API used by the spe
 # PAGE SETUP AND CONFIGURATION
 # ======================================================================
 # Must be the first Streamlit call on the page (sets the browser tab title and icon)
-st.set_page_config(page_title="Team 2 — Agentic Research", page_icon="🧩")
+st.set_page_config(page_title="Team 2 agentic market research", page_icon="🧩")
 
 load_dotenv()  # Pull TAVILY_API_KEY and DEEPSEEK_API_KEY from .env into the environment
 
@@ -56,7 +56,12 @@ if not TAVILY_API_KEY or not DEEPSEEK_API_KEY:
     st.stop()
 
 tavily = TavilyClient(api_key=TAVILY_API_KEY)  # Search client shared by all specialists
-deepseek = OpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com")  # Model client for every agent
+deepseek = OpenAI(
+    api_key=DEEPSEEK_API_KEY,
+    base_url="https://api.deepseek.com",
+    timeout=120.0,   # Give up on a stuck call after 2 minutes instead of the 10-minute default
+    max_retries=1,   # Retry a failed call once, then report the error
+)  # Model client for every agent
 
 EVIDENCE_DB = "team2_evidence.db"  # SQLite file holding the evidence and reports tables
 
@@ -360,7 +365,7 @@ def search_approved_sources(query: str) -> list[dict]:
         "search_depth": "advanced",            # Higher relevance, which matters with a narrow allowlist
         "max_results": 5,
         "include_domains": APPROVED_DOMAINS,   # Hard filter: only these domains are searched
-        "include_raw_content": "text",         # Full page text, so the publication date can be read
+        "include_raw_content": "markdown",     # Full page text (markdown is faster than "text"), so the date can be read
     }
     try:
         # include_published_date asks Tavily for its own date estimate on every result
@@ -583,8 +588,11 @@ or landing/index pages that only describe or link to a report.
 If the page is not eligible, return {"records": []}.
 
 Step 2 — For an eligible page, extract records using these rules:
+- Extract at most 4 records per source: the most important, distinct facts for the
+  objective. Never extract two records that say the same thing.
 - claim = a factual statement directly supported by the supplied text.
-- evidence = the passage from the supplied text that supports the claim, quoted closely.
+- evidence = the passage from the supplied text that supports the claim, quoted closely,
+  50 words or fewer.
 - source = "<publishing organization or journal>: <document title>".
 - url = exactly the supplied url.
 - publication_date = the document's own publication date, ONLY if it is explicitly
@@ -623,8 +631,8 @@ def extract_from_source(agent: str, objective: str, source: dict) -> list[dict]:
     if not isinstance(result, dict):  # Unusable reply
         return []
 
-    # Keep only well-formed record objects
-    records = [r for r in result.get("records", []) if isinstance(r, dict)]
+    # Keep only well-formed record objects, at most 4 per source
+    records = [r for r in result.get("records", []) if isinstance(r, dict)][:4]
 
     # One date for the whole source, chosen in Python from the most reliable signal
     publication_date = resolve_publication_date(source, [r.get("publication_date") for r in records])
@@ -640,8 +648,8 @@ def extract_specialist_evidence(specialist_results: list[dict]) -> list[dict]:
     """Extract evidence from every source of every specialist, in parallel."""
     records = []  # All extracted records
 
-    # One extraction call per source, up to 8 running at once
-    with ThreadPoolExecutor(max_workers=8) as executor:
+    # One extraction call per source, all running at once (3 specialists x 5 sources = 15)
+    with ThreadPoolExecutor(max_workers=16) as executor:
         futures = [
             executor.submit(
                 extract_from_source,
@@ -1214,81 +1222,277 @@ week7_graph = build_week7_graph()  # Build once when the app loads
 # WEEK 8 — APPROVAL GATE
 # Fails closed: a report is approved only if EVERY check passes.
 # ======================================================================
-def _w8_t2_ready(result):
-    """Conservative approval gate: every check must pass, otherwise the report is NOT approved."""
-    # Result must be a dict
+def _w8_t2_problems(result) -> list[str]:
+    """Every reason the report can't be approved. An empty list means every check passed."""
     if not isinstance(result, dict):
-        return False
+        return ["The pipeline did not return a result."]
+
+    problems = []
 
     # Reviewer must have said PASS
     review = result.get("review")
     if not isinstance(review, dict) or review.get("overall_status") != "PASS":
-        return False
+        problems.append("The reviewer did not pass the report.")
 
     # Final report must contain real text
     final_md = result.get("final_report_markdown")
     if not isinstance(final_md, str) or not final_md.strip():
-        return False
+        problems.append("The final report is empty.")
+        final_md = ""
 
     # At least one evidence record
     evidence = result.get("evidence_records")
     if not isinstance(evidence, list) or len(evidence) < 1:
-        return False
+        problems.append("No evidence records were produced.")
 
     # At least three specialist outputs
     specialists = result.get("specialist_results")
-    if not isinstance(specialists, list) or len(specialists) < 3:
-        return False
+    if not isinstance(specialists, list):
+        specialists = []
+    if len(specialists) < 3:
+        problems.append("Fewer than three specialist outputs were produced.")
 
-    # Extra check: all three roles actually produced output (not just any 3 results)
+    # All three roles actually produced output (not just any three results)
     roles = {s.get("agent") for s in specialists if isinstance(s, dict)}
-    if not {"Competitor", "Market", "Tech/Regulatory"} <= roles:
-        return False
+    missing_roles = [r for r in ("Competitor", "Market", "Tech/Regulatory") if r not in roles]
+    if missing_roles:
+        problems.append("No output from: " + ", ".join(missing_roles) + ".")
 
-    # Extra check: all 10 report headings are present
-    if not all(f"## {title}" in final_md for _key, title in REPORT_SECTION_KEYS):
-        return False
+    # All 10 report headings are present
+    if final_md:
+        missing = [title for _key, title in REPORT_SECTION_KEYS if f"## {title}" not in final_md]
+        if missing:
+            problems.append("Missing report sections: " + ", ".join(missing) + ".")
 
-    # Every check passed
-    return True
+    return problems
+
+
+def _w8_t2_ready(result) -> bool:
+    """Week 8 approval gate: True only when there are zero problems; any error also means not approved."""
+    try:
+        return not _w8_t2_problems(result)
+    except Exception:
+        return False  # Fail closed
 
 
 # ======================================================================
-# STREAMLIT UI — Final research workspace
+# STREAMLIT UI — visual design
+# Concept: the agents are drawn as a circuit board. Each station's contact
+# pad lights up gold as that agent finishes, so the pipeline is visible live.
+# Palette: board #F3F5F2, ink #1B2A24, solder mask #1F4D3A, contact gold #C9A227,
+#          pass #2E7D4F, flag #B3261E.  Type: IBM Plex Sans + Plex Sans Condensed.
 # ======================================================================
+import html as _html  # Escape any text placed inside custom HTML
+
+# CSS kept free of blank lines so Streamlit's markdown renderer treats it as one block
+_W8_CSS = """
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+:root{--rd-board:#F3F5F2;--rd-ink:#1B2A24;--rd-solder:#1F4D3A;--rd-gold:#C9A227;--rd-rule:#D5DCD6;--rd-pass:#2E7D4F;--rd-flag:#B3261E;--rd-muted:#56665E;}
+html,body,.stApp{font-family:'IBM Plex Sans','Segoe UI',Roboto,Helvetica,Arial,sans-serif;}
+[data-testid="stMarkdownContainer"] p,[data-testid="stMarkdownContainer"] li{line-height:1.6;}
+.rd-hero{background-color:var(--rd-solder);background-image:radial-gradient(rgba(234,242,236,.07) 1px,transparent 1px);background-size:18px 18px;color:#EAF2EC;border-radius:14px;padding:30px 28px 24px;margin:0 0 6px;}
+.rd-title{font-family:'IBM Plex Sans Condensed','Arial Narrow','Segoe UI',sans-serif;font-weight:600;font-size:2.15rem;line-height:1.08;letter-spacing:-.01em;color:#FFFFFF;margin:0 0 10px;}
+.rd-lede{color:#C9D8CF;font-size:1rem;line-height:1.55;max-width:62ch;margin:0 0 26px;}
+.rd-circuit{display:flex;align-items:flex-start;}
+.rd-station{position:relative;flex:1 1 0;min-width:0;padding-right:10px;}
+.rd-station:not(:last-child)::after{content:"";position:absolute;top:7px;left:14px;right:0;height:2px;background:rgba(234,242,236,.22);}
+.rd-station.done:not(:last-child)::after{background:var(--rd-gold);}
+.rd-pad{position:relative;z-index:1;display:block;width:14px;height:14px;border-radius:50%;border:2px solid rgba(234,242,236,.45);box-sizing:border-box;background:var(--rd-solder);}
+.rd-station.done .rd-pad{background:var(--rd-gold);border-color:var(--rd-gold);}
+.rd-station.flag .rd-pad{background:var(--rd-flag);border-color:#F2B8B5;}
+.rd-station.failed .rd-pad{background:var(--rd-flag);border-color:#F2B8B5;}
+.rd-station.running .rd-pad{border-color:var(--rd-gold);animation:rd-pulse 1.4s ease-out infinite;}
+@keyframes rd-pulse{0%{box-shadow:0 0 0 0 rgba(201,162,39,.6);}100%{box-shadow:0 0 0 10px rgba(201,162,39,0);}}
+.rd-name{display:block;margin-top:11px;font-family:'IBM Plex Sans Condensed','Arial Narrow','Segoe UI',sans-serif;font-weight:600;font-size:.98rem;color:rgba(255,255,255,.62);}
+.rd-station.done .rd-name,.rd-station.running .rd-name,.rd-station.failed .rd-name{color:#FFFFFF;}
+.rd-note{display:block;margin-top:2px;font-size:.8rem;line-height:1.35;color:#A9BDB2;}
+.rd-chips{margin-top:6px;}
+.rd-chip{display:inline-block;margin:0 4px 4px 0;padding:1px 8px;border-radius:999px;border:1px solid rgba(234,242,236,.28);font-size:.72rem;line-height:1.6;color:#A9BDB2;white-space:nowrap;}
+.rd-chip.on{border-color:var(--rd-gold);color:#FFFFFF;}
+.rd-runline{margin-top:20px;padding-top:14px;border-top:1px solid rgba(234,242,236,.16);font-size:.88rem;color:#C9D8CF;}
+.rd-verdict{background:#FFFFFF;border-left:4px solid var(--rd-pass);border-radius:0 12px 12px 0;padding:18px 22px 16px;margin:20px 0 10px;}
+.rd-verdict.flag{border-left-color:var(--rd-flag);}
+.rd-verdict-title{font-family:'IBM Plex Sans Condensed','Arial Narrow','Segoe UI',sans-serif;font-weight:600;font-size:1.4rem;line-height:1.2;color:var(--rd-ink);margin:0 0 4px;}
+.rd-verdict-text{color:var(--rd-muted);font-size:.95rem;line-height:1.5;max-width:68ch;margin:0 0 14px;}
+.rd-verdict-text ul{margin:6px 0 0 18px;padding:0;}
+.rd-readouts{display:flex;flex-wrap:wrap;gap:10px 34px;}
+.rd-readout b{display:block;font-family:'IBM Plex Sans Condensed','Arial Narrow','Segoe UI',sans-serif;font-weight:600;font-size:1.35rem;line-height:1.15;color:var(--rd-ink);}
+.rd-readout span{font-size:.8rem;color:var(--rd-muted);}
+.rd-scores{display:grid;gap:12px;margin:6px 0 8px;}
+.rd-score{display:grid;grid-template-columns:150px 1fr 48px;align-items:center;column-gap:14px;font-size:.92rem;color:var(--rd-ink);}
+.rd-bar{position:relative;height:8px;border-radius:4px;background:var(--rd-rule);}
+.rd-bar i{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:var(--rd-pass);}
+.rd-bar i.low{background:var(--rd-flag);}
+.rd-bar::after{content:"";position:absolute;left:70%;top:-4px;bottom:-4px;width:2px;background:var(--rd-ink);opacity:.5;}
+.rd-score-value{text-align:right;font-weight:600;}
+.rd-scale-note{font-size:.8rem;color:var(--rd-muted);margin:0 0 18px;}
+@media (max-width:640px){
+.rd-hero{padding:24px 18px 20px;}
+.rd-title{font-size:1.7rem;}
+.rd-circuit{flex-direction:column;gap:16px;}
+.rd-station{padding:0 0 0 28px;}
+.rd-pad{position:absolute;left:0;top:3px;}
+.rd-name{margin-top:0;}
+.rd-station:not(:last-child)::after{top:17px;left:6px;right:auto;bottom:-19px;width:2px;height:auto;}
+.rd-score{grid-template-columns:1fr 48px;row-gap:6px;}
+.rd-score .rd-bar{grid-column:1 / -1;grid-row:2;}
+}
+@media (prefers-reduced-motion:reduce){.rd-station.running .rd-pad{animation:none;}}
+</style>
+"""
+# Remove indentation and blank lines so the whole block reaches the page as raw CSS
+_W8_CSS = "\n".join(line.strip() for line in _W8_CSS.splitlines() if line.strip())
+st.markdown(_W8_CSS, unsafe_allow_html=True)
+
+# The six stations in pipeline order: (graph node name, label, what it does before it runs)
+STATIONS = [
+    ("supervise", "Supervisor", "Plans the research"),
+    ("specialists", "Specialists", "Search papers and reports"),
+    ("evidence_store", "Evidence", "Pulls dated, sourced facts"),
+    ("gap_check", "Gap check", "Looks for missing evidence"),
+    ("synthesis", "Synthesis", "Writes the report"),
+    ("reviewer", "Reviewer", "Checks it before approval"),
+]
 ROLE_ORDER = ["Competitor", "Market", "Tech/Regulatory"]  # Display order for the specialists
 
-
-def _step_message(node_name: str, node_output: dict) -> str:
-    """Plain-language progress line for one finished pipeline step."""
-    if node_name == "supervise":
-        return "Supervisor split the question into three assignments"
-    if node_name == "specialists":
-        # Name each specialist that finished, so all three labels are visible
-        roles = sorted(r.get("agent", "?") for r in node_output.get("specialist_results", []))
-        return f"Specialists finished: {', '.join(roles) or 'none'}"
-    if node_name == "evidence_store":
-        return f"Evidence store built with {len(node_output.get('evidence_records', []))} records"
-    if node_name == "gap_check":
-        needs = (node_output.get("gap_check") or {}).get("needs_research")
-        return "Gap check found a gap worth one extra search" if needs else "Gap check found the evidence sufficient"
-    if node_name == "additional":
-        return f"Extra research pass added {node_output.get('new_evidence_count', 0)} new records"
-    if node_name == "synthesis":
-        return "Synthesis agent drafted the report"
-    if node_name == "reviewer":
-        verdict = (node_output.get("review") or {}).get("overall_status", "unknown")
-        revised = " after one revision" if node_output.get("revision_performed") else ""
-        return f"Reviewer verdict: {verdict}{revised}"
-    return node_name  # Fallback for any unexpected node
+# What the run line says while each node is working
+RUNNING_TEXT = {
+    "supervise": "The supervisor is planning the research",
+    "specialists": "The specialists are searching papers and reports",
+    "evidence_store": "Extracting evidence from each source",
+    "gap_check": "Checking the evidence for gaps",
+    "additional": "Running one extra research pass",
+    "synthesis": "Writing the report",
+    "reviewer": "The reviewer is checking the report",
+}
 
 
-# ---------------- Header ----------------
-st.title("Team 2 — Agentic Market Research")
-st.caption(
-    "A supervisor, three specialist agents, a shared evidence store, and a reviewer "
-    "work together to answer one business research question."
-)
+def _as_dict(value) -> dict:
+    """The value if it is a dict, otherwise an empty dict (so bad model output can't crash the page)."""
+    return value if isinstance(value, dict) else {}
+
+
+def _as_list(value) -> list:
+    """The value if it is a list, otherwise an empty list."""
+    return value if isinstance(value, list) else []
+
+
+def _fmt_duration(seconds: float) -> str:
+    """48 -> '48 s', 192 -> '3 min 12 s'."""
+    seconds = int(round(seconds or 0))
+    minutes, secs = divmod(seconds, 60)
+    return f"{minutes} min {secs} s" if minutes else f"{secs} s"
+
+
+def _next_node(finished: str, output: dict) -> str | None:
+    """Which node runs after `finished` (mirrors the graph's edges)."""
+    if finished == "gap_check":
+        gap = _as_dict(output.get("gap_check"))
+        return "additional" if gap.get("needs_research") is True and gap.get("targeted_question") else "synthesis"
+    order = {"supervise": "specialists", "specialists": "evidence_store", "evidence_store": "gap_check",
+             "additional": "synthesis", "synthesis": "reviewer", "reviewer": None}
+    return order.get(finished)
+
+
+def _render_hero(progress: dict) -> str:
+    """Build the header and the live circuit as one HTML string (no newlines, so markdown leaves it alone)."""
+    done, running, failed = progress["done"], progress["running"], progress["failed"]
+    result = _as_dict(progress["result"])
+    review = _as_dict(result.get("review"))
+    gap_check = _as_dict(result.get("gap_check"))
+    first_pass = {a.get("objective") for a in _as_list(result.get("assignments")) if isinstance(a, dict)}
+    roles_done = {s.get("agent") for s in _as_list(result.get("specialist_results"))
+                  if isinstance(s, dict) and s.get("objective") in first_pass}
+
+    stations_html = []
+    for key, label, idle_note in STATIONS:
+        classes = ["rd-station"]
+        note = idle_note
+        chips = []
+
+        if key in done:
+            classes.append("done")
+        if key == running or (key == "gap_check" and running == "additional"):
+            classes.append("running")
+        if key == failed or (key == "gap_check" and failed == "additional"):
+            classes.append("failed")
+
+        if key == "supervise" and key in done:
+            note = f"{len(_as_list(result.get('assignments')))} assignments made"
+        elif key == "specialists":
+            if key in done:
+                note = f"{len(roles_done)} of 3 reported back"
+            for role in ROLE_ORDER:
+                chips.append((role, role in roles_done))
+        elif key == "evidence_store" and key in done:
+            note = f"{len(_as_list(result.get('evidence_records')))} records"
+        elif key == "gap_check" and key in done:
+            note = "Gap found" if gap_check.get("needs_research") is True else "Evidence sufficient"
+            if running == "additional":
+                chips.append(("Extra pass running", True))
+            elif "additional" in done:
+                if result.get("additional_research_performed"):
+                    chips.append((f"Extra pass +{result.get('new_evidence_count', 0)}", True))
+                else:
+                    chips.append(("Extra pass added nothing", True))
+        elif key == "synthesis" and key in done:
+            note = "Draft written"
+        elif key == "reviewer" and key in done:
+            passed = review.get("overall_status") == "PASS"
+            note = "Passed review" if passed else "Did not pass"
+            if not passed:
+                classes.append("flag")
+            if result.get("revision_performed"):
+                chips.append(("Revised once", True))
+
+        chips_html = ""
+        if chips:
+            chips_html = '<div class="rd-chips">' + "".join(
+                f'<span class="rd-chip{" on" if on else ""}">{_html.escape(text)}</span>' for text, on in chips
+            ) + "</div>"
+
+        stations_html.append(
+            f'<div class="{" ".join(classes)}"><span class="rd-pad"></span>'
+            f'<span class="rd-name">{_html.escape(label)}</span>'
+            f'<span class="rd-note">{_html.escape(note)}</span>{chips_html}</div>'
+        )
+
+    return (
+        '<div class="rd-hero">'
+        '<div class="rd-title" role="heading" aria-level="1">Team 2 agentic market research</div>'
+        '<p class="rd-lede">Ask a business question. A supervisor splits it across three specialist agents, '
+        'they build an evidence base from research papers and formal reports, and a reviewer checks the '
+        'report before it is approved.</p>'
+        f'<div class="rd-circuit">{"".join(stations_html)}</div>'
+        f'<div class="rd-runline" aria-live="polite">{_html.escape(progress["line"])}</div>'
+        '</div>'
+    )
+
+
+def _final_progress(result: dict, seconds: float) -> dict:
+    """Circuit state for a finished run, so the hero still shows it after a rerun (e.g. clicking Download)."""
+    result = _as_dict(result)
+    done = {key for key, _label, _note in STATIONS}
+    if _as_dict(result.get("gap_check")).get("needs_research") is True:
+        done.add("additional")
+    return {"done": done, "running": None, "failed": None, "result": result,
+            "line": f"Finished in {_fmt_duration(seconds)}."}
+
+
+# ---------------- Hero (placeholder, so it can update live during a run) ----------------
+hero = st.empty()
+if "w8_t2_result" in st.session_state:
+    hero.markdown(
+        _render_hero(_final_progress(st.session_state["w8_t2_result"], st.session_state.get("w8_t2_seconds", 0))),
+        unsafe_allow_html=True,
+    )
+else:
+    hero.markdown(
+        _render_hero({"done": set(), "running": None, "failed": None, "result": {},
+                      "line": "Enter a question below to start a run."}),
+        unsafe_allow_html=True,
+    )
 
 # ---------------- Question form ----------------
 # A form lets the user press Enter or click the button to submit
@@ -1322,58 +1526,78 @@ if submitted:
             "new_evidence_count": 0,
         }
 
-        result = dict(initial_state)  # Final state, built up as each step finishes
-        start = time.perf_counter()   # Start time, for the duration metric
+        start = time.perf_counter()  # Start time, for the run-time readout
+        progress = {"done": set(), "running": "supervise", "failed": None,
+                    "result": dict(initial_state), "line": RUNNING_TEXT["supervise"]}
+        st.session_state.pop("w8_t2_result", None)  # Clear the previous run so it can't be confused with this one
+        hero.markdown(_render_hero(progress), unsafe_allow_html=True)
 
-        # Live progress box: one line per finished step, with elapsed time
-        with st.status("Researching...", expanded=True) as status:
-            try:
-                for update in week7_graph.stream(initial_state, stream_mode="updates"):
-                    for node_name, node_output in update.items():
-                        node_output = node_output or {}
-                        result.update(node_output)  # Merge this step's output into the final state
-                        elapsed = time.perf_counter() - start
-                        status.write(f"{_step_message(node_name, node_output)} ({elapsed:.0f}s)")
+        try:
+            for update in week7_graph.stream(initial_state, stream_mode="updates"):
+                for node_name, node_output in update.items():
+                    node_output = node_output or {}
+                    progress["result"].update(node_output)          # Merge this step's output into the final state
+                    progress["done"].add(node_name)                 # Light this station's pad
+                    progress["running"] = _next_node(node_name, progress["result"])
+                    elapsed = _fmt_duration(time.perf_counter() - start)
+                    progress["line"] = (f"{RUNNING_TEXT[progress['running']]} ({elapsed})"
+                                        if progress["running"] else f"Wrapping up ({elapsed})")
+                    hero.markdown(_render_hero(progress), unsafe_allow_html=True)
 
-                seconds = round(time.perf_counter() - start, 1)
-                status.update(label=f"Finished in {seconds:.0f} seconds", state="complete", expanded=False)
-
-                # Keep the result across reruns (e.g. clicking Download reruns the script)
-                st.session_state["w8_t2_result"] = result
-                st.session_state["w8_t2_seconds"] = seconds
-            except Exception as exc:
-                status.update(label="Research failed", state="error")
-                st.session_state.pop("w8_t2_result", None)  # Never show a stale result after a failure
-                st.error(f"Research failed and no report was produced: {exc}")
+            seconds = round(time.perf_counter() - start, 1)
+            # Keep the result across reruns (clicking Download reruns the script)
+            st.session_state["w8_t2_result"] = progress["result"]
+            st.session_state["w8_t2_seconds"] = seconds
+            hero.markdown(_render_hero(_final_progress(progress["result"], seconds)), unsafe_allow_html=True)
+        except Exception as exc:
+            failed_label = dict((k, label) for k, label, _n in STATIONS).get(progress["running"], "Extra research pass")
+            progress["failed"], progress["running"] = progress["running"], None
+            progress["line"] = f"Stopped at {failed_label} after {_fmt_duration(time.perf_counter() - start)}."
+            hero.markdown(_render_hero(progress), unsafe_allow_html=True)
+            st.error(f"The run stopped at {failed_label}, so no report was produced. Details: {exc}")
 
 # ---------------- Results ----------------
 if "w8_t2_result" in st.session_state:
-    result = st.session_state["w8_t2_result"]
+    result = _as_dict(st.session_state["w8_t2_result"])
+    problems = _w8_t2_problems(result)                      # Reasons the gate failed, if any
     approved = _w8_t2_ready(result)                         # The Week 8 quality gate
-    review = result.get("review") or {}                     # Final reviewer verdict
-    gap_check = result.get("gap_check") or {}               # Gap/conflict check result
-    evidence = result.get("evidence_records") or []         # All evidence (both passes)
-    specialists = result.get("specialist_results") or []    # All specialist outputs (both passes)
+    review = _as_dict(result.get("review"))                     # Final reviewer verdict
+    gap_check = _as_dict(result.get("gap_check"))               # Gap/conflict check result
+    evidence = _as_list(result.get("evidence_records"))         # All evidence (both passes)
+    specialists = _as_list(result.get("specialist_results"))    # All specialist outputs (both passes)
     report_md = result.get("final_report_markdown") or result.get("report_markdown") or ""
+    report_md = report_md if isinstance(report_md, str) else ""
+    distinct_sources = len({str(e.get("url")) for e in evidence if isinstance(e, dict) and e.get("url")})
 
-    # Verdict banner: the first thing the viewer sees
+    # Verdict: the outcome first, then the numbers behind it
     if approved:
-        st.success("Approved by the reviewer. This is prototype output and has not been independently fact-checked.")
+        verdict_title = "Approved"
+        verdict_text = ("The reviewer passed this report and it cleared every approval check. "
+                        "It is prototype output and has not been independently fact-checked.")
     else:
-        st.error("Not approved. The report did not pass the quality gate, so no download is offered.")
+        verdict_title = "Not approved"
+        verdict_text = ("The report did not clear the approval checks, so no download is offered. "
+                        "The draft is kept in the Report tab for debugging.<ul>"
+                        + "".join(f"<li>{_html.escape(p)}</li>" for p in problems) + "</ul>")
+    readouts = [
+        (_fmt_duration(st.session_state.get("w8_t2_seconds", 0)), "Run time"),
+        (str(len(evidence)), "Evidence records"),
+        (str(distinct_sources), "Distinct sources"),
+        (str(len(specialists)), "Specialist outputs"),
+    ]
+    st.markdown(
+        f'<div class="rd-verdict{"" if approved else " flag"}">'
+        f'<div class="rd-verdict-title" role="heading" aria-level="2">{verdict_title}</div>'
+        f'<div class="rd-verdict-text">{verdict_text}</div>'
+        '<div class="rd-readouts">'
+        + "".join(f'<div class="rd-readout"><b>{_html.escape(v)}</b><span>{_html.escape(l)}</span></div>'
+                  for v, l in readouts)
+        + "</div></div>",
+        unsafe_allow_html=True,
+    )
 
-    # Summary metrics
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Duration", f"{st.session_state.get('w8_t2_seconds', 0):.0f}s")
-    m2.metric("Evidence records", len(evidence))
-    m3.metric("Specialist outputs", len(specialists))
-    if result.get("additional_research_performed"):
-        m4.metric("Extra research", f"+{result.get('new_evidence_count', 0)} records")
-    else:
-        m4.metric("Extra research", "Not needed")
-
-    tab_report, tab_specialists, tab_gaps, tab_review, tab_evidence = st.tabs(
-        ["Report", "Specialists", "Gap check", "Reviewer", "Evidence"]
+    tab_report, tab_review, tab_specialists, tab_gaps, tab_evidence = st.tabs(
+        ["Report", "Reviewer", "Specialists", "Gap check", "Evidence"]
     )
 
     # Report: shown openly with a download ONLY when approved
@@ -1392,23 +1616,63 @@ if "w8_t2_result" in st.session_state:
             with st.expander("Unapproved draft (internal debugging only)"):
                 st.markdown(display_md)
 
+    # Reviewer: six scores drawn against the pass bar of 7, then issues and gaps
+    with tab_review:
+        if result.get("revision_performed"):
+            st.caption("The first draft did not pass, so one controlled revision was made and reviewed again.")
+
+        bars = []
+        for name, score in _as_dict(review.get("scores")).items():
+            try:
+                score = max(0, min(10, int(score)))
+            except (TypeError, ValueError):
+                score = 0
+            bars.append(
+                f'<div class="rd-score"><span>{_html.escape(str(name).replace("_", " ").capitalize())}</span>'
+                f'<div class="rd-bar" role="img" aria-label="{score} out of 10">'
+                f'<i class="{"" if score >= 7 else "low"}" style="width:{score * 10}%"></i></div>'
+                f'<span class="rd-score-value">{score}/10</span></div>'
+            )
+        if bars:
+            st.markdown('<div class="rd-scores">' + "".join(bars) + "</div>"
+                        '<p class="rd-scale-note">The line on each bar marks the pass mark of 7.</p>',
+                        unsafe_allow_html=True)
+
+        st.markdown("**Issues**")
+        for issue in _as_list(review.get("issues")) or ["No issues reported."]:
+            if isinstance(issue, dict):  # Normal reviewer issues are dicts
+                st.markdown(
+                    f"- **{issue.get('category', '')}** ({issue.get('section', 'overall')}): "
+                    f"{issue.get('explanation', '')}  \n  Suggested fix: {issue.get('suggested_fix', '')}"
+                )
+            else:  # Failed reviews return plain-text issues
+                st.markdown(f"- {issue}")
+
+        st.markdown("**Research gaps**")
+        for gap in _as_list(review.get("research_gaps")) or ["None reported."]:
+            st.markdown(f"- {gap}")
+
+        if result.get("revision_performed"):
+            with st.expander("Initial review, before the revision"):
+                st.json(_as_dict(result.get("initial_review")))
+
     # Specialists: each role's objective and brief, first pass before the extra pass
     with tab_specialists:
-        first_pass_objectives = {a.get("objective") for a in result.get("assignments", [])}
+        first_pass_objectives = {a.get("objective") for a in _as_list(result.get("assignments")) if isinstance(a, dict)}
 
         def _sort_key(s):
             extra = s.get("objective") not in first_pass_objectives  # Extra-pass outputs go last
             role = ROLE_ORDER.index(s["agent"]) if s.get("agent") in ROLE_ORDER else len(ROLE_ORDER)
             return (extra, role)
 
-        for s in sorted(specialists, key=_sort_key):
+        for s in sorted((s for s in specialists if isinstance(s, dict)), key=_sort_key):
             label = s.get("agent", "Specialist")
             if s.get("objective") not in first_pass_objectives:
                 label += " (extra research pass)"
             with st.expander(label):
                 st.markdown(f"**Objective:** {s.get('objective', '')}")
-                st.markdown((s.get("research") or "").replace("$", "\\$"))
-                st.caption(f"{len(s.get('sources', []))} web sources")
+                st.markdown(str(s.get("research") or "").replace("$", "\\$"))
+                st.caption(f"{len(_as_list(s.get('sources')))} approved sources")
 
     # Gap check: whether one extra research pass ran, and why
     with tab_gaps:
@@ -1423,40 +1687,12 @@ if "w8_t2_result" in st.session_state:
         st.markdown(f"**Reason:** {gap_check.get('reason') or 'No reason given.'}")
 
         st.markdown("**Gaps**")
-        for g in gap_check.get("gaps") or ["None found."]:
+        for g in _as_list(gap_check.get("gaps")) or ["None found."]:
             st.markdown(f"- {g}")
 
         st.markdown("**Conflicts**")
-        for c in gap_check.get("conflicts") or ["None found."]:
+        for c in _as_list(gap_check.get("conflicts")) or ["None found."]:
             st.markdown(f"- {c}")
-
-    # Reviewer: six scores against the pass bar of 7, then issues and gaps
-    with tab_review:
-        if result.get("revision_performed"):
-            st.caption("The first draft did not pass, so one controlled revision was made and re-reviewed.")
-
-        cols = st.columns(3)
-        for i, (name, score) in enumerate((review.get("scores") or {}).items()):
-            # Arrow shows distance from the pass bar (green above 7, red below)
-            cols[i % 3].metric(name.replace("_", " ").title(), f"{score}/10", delta=score - 7)
-
-        st.markdown("**Issues**")
-        for issue in review.get("issues") or ["No issues reported."]:
-            if isinstance(issue, dict):  # Normal reviewer issues are dicts
-                st.markdown(
-                    f"- **{issue.get('category', '')}** ({issue.get('section', 'overall')}): "
-                    f"{issue.get('explanation', '')}  \n  Suggested fix: {issue.get('suggested_fix', '')}"
-                )
-            else:  # Failed reviews return plain-text issues
-                st.markdown(f"- {issue}")
-
-        st.markdown("**Research gaps**")
-        for gap in review.get("research_gaps") or ["None reported."]:
-            st.markdown(f"- {gap}")
-
-        if result.get("revision_performed"):
-            with st.expander("Initial review, before the revision"):
-                st.json(result.get("initial_review") or {})
 
     # Evidence: one row per record, IDs match the [E#] citations in the report
     with tab_evidence:
@@ -1471,10 +1707,12 @@ if "w8_t2_result" in st.session_state:
                 "Link": rec.get("url", ""),
             }
             for i, rec in enumerate(evidence, start=1)
+            if isinstance(rec, dict)
         ]
-        st.dataframe(
-            rows,
-            hide_index=True,
-            use_container_width=True,
-            column_config={"Link": st.column_config.LinkColumn("Link")},  # Clickable source URLs
-        )
+        link_column = {"Link": st.column_config.LinkColumn("Link")}  # Clickable source URLs
+        try:
+            # Newer Streamlit: width="stretch" fills the column
+            st.dataframe(rows, hide_index=True, width="stretch", column_config=link_column)
+        except Exception:
+            # Older Streamlit versions only understand use_container_width
+            st.dataframe(rows, hide_index=True, use_container_width=True, column_config=link_column)
