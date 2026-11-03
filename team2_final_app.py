@@ -20,8 +20,10 @@ Run (from the folder that holds this file and your .env):
 # ======================================================================
 import json                     # Encode prompts as JSON and parse model replies
 import os                       # Read API keys from environment variables
+import queue                    # Hand finished pipeline steps from the worker thread to the page
 import re                       # Pull dates out of URLs (arXiv IDs, /YYYY/MM/ paths)
 import sqlite3                  # Local database for evidence records and saved reports
+import threading                # Run the pipeline in the background so the timer can keep ticking
 import time                     # Time each pipeline step for the live progress display
 from concurrent.futures import ThreadPoolExecutor, as_completed  # Run agents and extractions in parallel
 from datetime import date, datetime, timezone  # Report timestamps and date validation
@@ -40,7 +42,7 @@ from tavily import TavilyClient                 # Web search API used by the spe
 # PAGE SETUP AND CONFIGURATION
 # ======================================================================
 # Must be the first Streamlit call on the page (sets the browser tab title and icon)
-st.set_page_config(page_title="Verfified Market Research", page_icon="📈")
+st.set_page_config(page_title="Verified Market Research", page_icon="📈")
 
 load_dotenv()  # Pull TAVILY_API_KEY and DEEPSEEK_API_KEY from .env into the environment
 
@@ -472,6 +474,11 @@ def research_assignment(assignment: dict, original_question: str) -> dict:
     }
 
 
+# Specialist failures from the current run. The graph runs in a background thread, where
+# Streamlit can't draw, so failures are collected here and shown on the page afterwards.
+SPECIALIST_ERRORS = []
+
+
 def specialists_node(state: ResearchState) -> dict:
     """Run all three specialist assignments at the same time."""
     specialist_results = []  # Collected results from every specialist
@@ -489,7 +496,7 @@ def specialists_node(state: ResearchState) -> dict:
                 specialist_results.append(future.result())
             except Exception as e:
                 # One failed specialist shouldn't kill the whole run
-                st.error(f"Error during parallel specialist execution: {e}")
+                SPECIALIST_ERRORS.append(f"A specialist failed and was skipped: {e}")
 
     return {"specialist_results": specialist_results}  # Write results into graph state
 
@@ -1581,7 +1588,7 @@ def _render_hero(progress: dict) -> str:
 
     return (
         '<div class="rd-hero">'
-        '<div class="rd-title" role="heading" aria-level="1">Team 2 agentic market research</div>'
+        '<div class="rd-title" role="heading" aria-level="1">Verified Market Research</div>'
         '<p class="rd-lede">Ask a business question. A supervisor splits it across three specialist agents, '
         'they build an evidence base from research papers and formal reports, and a reviewer checks the '
         'report before it is approved.</p>'
@@ -1653,17 +1660,53 @@ if submitted:
         st.session_state.pop("w8_t2_result", None)  # Clear the previous run so it can't be confused with this one
         hero.markdown(_render_hero(progress), unsafe_allow_html=True)
 
+        SPECIALIST_ERRORS.clear()  # Start this run with no recorded specialist failures
+
+        # The graph runs in a background thread so this (main) thread is free to redraw
+        # the timer every half second; finished steps arrive through a thread-safe queue.
+        updates = queue.Queue()
+        outcome = {}  # Holds the exception if the graph fails
+
+        def _run_graph():
+            try:
+                for update in week7_graph.stream(initial_state, stream_mode="updates"):
+                    updates.put(update)
+            except Exception as exc:
+                outcome["error"] = exc
+
+        worker = threading.Thread(target=_run_graph, daemon=True)
+        worker.start()
+
         try:
-            for update in week7_graph.stream(initial_state, stream_mode="updates"):
-                for node_name, node_output in update.items():
-                    node_output = node_output or {}
-                    progress["result"].update(node_output)          # Merge this step's output into the final state
-                    progress["done"].add(node_name)                 # Light this station's pad
-                    progress["running"] = _next_node(node_name, progress["result"])
-                    elapsed = _fmt_duration(time.perf_counter() - start)
-                    progress["line"] = (f"{RUNNING_TEXT[progress['running']]} ({elapsed})"
-                                        if progress["running"] else f"Wrapping up ({elapsed})")
-                    hero.markdown(_render_hero(progress), unsafe_allow_html=True)
+            while True:
+                # Check BEFORE draining, so the final steps queued just before the thread ended aren't missed
+                finished = not worker.is_alive()
+
+                # Apply every step that finished since the last tick
+                while True:
+                    try:
+                        update = updates.get_nowait()
+                    except queue.Empty:
+                        break
+                    for node_name, node_output in update.items():
+                        node_output = node_output or {}
+                        progress["result"].update(node_output)          # Merge this step's output into the final state
+                        progress["done"].add(node_name)                 # Light this station's pad
+                        progress["running"] = _next_node(node_name, progress["result"])
+
+                # Redraw the circuit with the live timer
+                elapsed = _fmt_duration(time.perf_counter() - start)
+                progress["line"] = (f"{RUNNING_TEXT[progress['running']]} ({elapsed})"
+                                    if progress["running"] else f"Wrapping up ({elapsed})")
+                hero.markdown(_render_hero(progress), unsafe_allow_html=True)
+
+                if finished:
+                    break
+                time.sleep(0.5)  # Tick twice a second so the seconds count up smoothly
+
+            worker.join()
+            if "error" in outcome:
+                raise outcome["error"]  # Hand the graph's failure to the error handling below
 
             seconds = round(time.perf_counter() - start, 1)
             # Keep the result across reruns (clicking Download reruns the script)
@@ -1676,6 +1719,9 @@ if submitted:
             progress["line"] = f"Stopped at {failed_label} after {_fmt_duration(time.perf_counter() - start)}."
             hero.markdown(_render_hero(progress), unsafe_allow_html=True)
             st.error(f"The run stopped at {failed_label}, so no report was produced. Details: {exc}")
+
+        for message in SPECIALIST_ERRORS:  # Specialist failures recorded during the run
+            st.warning(message)
 
 # ---------------- Results ----------------
 if "w8_t2_result" in st.session_state:
