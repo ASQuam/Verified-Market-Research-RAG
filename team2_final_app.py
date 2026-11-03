@@ -40,7 +40,7 @@ from tavily import TavilyClient                 # Web search API used by the spe
 # PAGE SETUP AND CONFIGURATION
 # ======================================================================
 # Must be the first Streamlit call on the page (sets the browser tab title and icon)
-st.set_page_config(page_title="Team 2 agentic market research", page_icon="🧩")
+st.set_page_config(page_title="Verfified Market Research", page_icon="📈")
 
 load_dotenv()  # Pull TAVILY_API_KEY and DEEPSEEK_API_KEY from .env into the environment
 
@@ -383,6 +383,8 @@ SOURCE_POLICY_NOTE = """
 The supplied sources are restricted to research papers and formal published reports.
 Rely only on them. Say when a finding comes from a preprint (not yet peer reviewed)
 or from an industry analyst estimate. If the sources don't cover something, say so.
+Format the brief as one short overview sentence followed by bullet points,
+one finding per bullet.
 """.strip()
 
 
@@ -914,7 +916,31 @@ Rules:
   consulting reports as that firm's estimate, not as settled fact.
 - For time-sensitive figures (market size, share, revenue, regulation status),
   include the source's publication date when the evidence record has one.
+
+Formatting (each section value is ONE markdown string):
+- Open each section with one or two short sentences, then use bullet points for
+  individual findings, risks, opportunities, and next steps. Keep any paragraph to
+  two or three sentences.
+- In competitor_comparison, include a markdown table comparing the companies on the
+  dimensions the evidence covers, with citations in the cells.
+- Start bullets with a short **bold lead-in** when it helps scanning.
+- Do not put markdown headings (#) inside a section.
 """.strip()
+
+
+def _section_text(value) -> str:
+    """Turn one model-written section into markdown text, even if the model returned a list or dict."""
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value.strip()
+    if isinstance(value, list):
+        # A list of findings becomes bullet points
+        return "\n".join(f"- {_section_text(item)}" for item in value if _section_text(item))
+    if isinstance(value, dict):
+        # A dict of sub-points becomes bold-labeled bullets
+        return "\n".join(f"- **{k}:** {_section_text(v)}" for k, v in value.items())
+    return str(value).strip()
 
 
 def build_evidence_packet(evidence_records: list[dict]) -> list[dict]:
@@ -954,7 +980,7 @@ def synthesize_report(question: str, evidence_records: list[dict]) -> dict:
 
     # Guarantee all nine sections exist, in the shared order
     report = {
-        key: report.get(key) or "Insufficient evidence found for this section."
+        key: _section_text(report.get(key)) or "Insufficient evidence found for this section."
         for key in MODEL_SECTION_KEYS
     }
 
@@ -962,15 +988,25 @@ def synthesize_report(question: str, evidence_records: list[dict]) -> dict:
 
 
 def build_references(evidence_records: list[dict]) -> str:
-    """Build the Sources / References list from real URLs (never model-invented)."""
-    lines = []
+    """Build the Sources / References list from real URLs (never model-invented).
+
+    One line per source document, listing every [E#] that came from it, so a source
+    with four extracted facts appears once instead of four times.
+    """
+    groups = {}  # url -> {"ids": [...], "record": first record from that url}, in first-seen order
     for index, record in enumerate(evidence_records, start=1):
-        source = record.get("source") or "Unknown source"
         url = record.get("url") or "No URL"
+        group = groups.setdefault(url, {"ids": [], "record": record})
+        group["ids"].append(index)
+
+    lines = []
+    for url, group in groups.items():
+        record = group["record"]
+        source = record.get("source") or "Unknown source"
         pub_date = record.get("publication_date") or "Date not stated"
         kind = str(record.get("source_type") or "").replace("_", " ")  # e.g. "peer reviewed paper"
-        # Numbering matches the [E#] citations in the report
-        lines.append(f"- [E{index}] {source} ({kind}, {pub_date}) — {url}")
+        ids = " ".join(f"[E{i}]" for i in group["ids"])  # Same numbers the report cites
+        lines.append(f"- {ids} {source} ({kind}, {pub_date}) — {url}")
     return "\n".join(lines) if lines else "No source records were available."
 
 
@@ -1053,6 +1089,9 @@ You are the SYNTHESIS AGENT performing ONE controlled revision after reviewer fe
 Use ONLY the supplied shared evidence. Do not research new facts.
 Keep the same nine-section JSON report contract used in Week 5.
 If a true research gap cannot be fixed from existing evidence, acknowledge it in limitations.
+Keep the same formatting: each section is ONE markdown string with short opening
+sentences, bullet points, a markdown table in competitor_comparison, and no headings
+inside a section. Keep every [E#] citation that is still supported.
 """.strip()
 
 
@@ -1141,7 +1180,8 @@ def revise_report_once(question: str, report: dict, evidence_records: list[dict]
 
     # All nine sections must exist; fall back to the original section if one is missing
     return {
-        key: revised.get(key) or report.get(key) or "Insufficient evidence found for this section."
+        key: _section_text(revised.get(key)) or _section_text(report.get(key))
+        or "Insufficient evidence found for this section."
         for key in MODEL_SECTION_KEYS
     }
 
@@ -1378,6 +1418,87 @@ def _as_list(value) -> list:
     return value if isinstance(value, list) else []
 
 
+# Citation patterns the model may write: [E4], [E1, E2], [E1; E2], [E1 and E2], [E1-E3]
+_CITE_GROUP = re.compile(r"\[\s*(E\d+(?:\s*(?:,|;|\band\b|[-\u2013\u2014])\s*E\d+)*)\s*\]")
+_CITE_RANGE = re.compile(r"E(\d+)\s*[-\u2013\u2014]\s*E(\d+)")
+_CITE_ID = re.compile(r"E(\d+)")
+
+
+def _cite_link(evidence: list, n: int) -> str:
+    """Markdown for one citation: a clickable [E#] pointing at that record's real URL."""
+    record = evidence[n - 1] if 1 <= n <= len(evidence) and isinstance(evidence[n - 1], dict) else {}
+    url = str(record.get("url") or "")
+    if not url.startswith(("http://", "https://")):
+        return f"\\[E{n}\\]"  # No real URL for this number: show the label without a link
+    # Encode characters that would break a markdown link or a table cell
+    for char, code in ((" ", "%20"), ("(", "%28"), (")", "%29"), ("|", "%7C"), ("<", "%3C"), (">", "%3E")):
+        url = url.replace(char, code)
+    # Hover text: the source's name, with characters that would break the link removed
+    title = re.sub(r'[\"\\|\[\]\n\r$]', " ", str(record.get("source") or "")).strip()[:120]
+    title_part = f' "{title}"' if title else ""
+    return f"[\\[E{n}\\]]({url}{title_part})"
+
+
+def _linkify_citations(text: str, evidence: list) -> str:
+    """Replace every [E#] citation group in the text with clickable links to the sources."""
+    def replace_group(match):
+        ids = []
+        for part in re.split(r"\s*(?:,|;|\band\b)\s*", match.group(1)):
+            span = _CITE_RANGE.fullmatch(part.strip())
+            if span:
+                start, end = int(span.group(1)), int(span.group(2))
+                if start <= end and end - start <= 30:  # Expand short ranges like E1-E3
+                    ids.extend(range(start, end + 1))
+                    continue
+            ids.extend(int(x) for x in _CITE_ID.findall(part))
+        return "".join(_cite_link(evidence, n) for n in ids) if ids else match.group(0)
+    return _CITE_GROUP.sub(replace_group, text)
+
+
+def _md(text, evidence: list) -> str:
+    """Prepare model text for display: stop $ from rendering as math, then link citations."""
+    return _linkify_citations(str(text or "").replace("$", "\\$"), evidence)
+
+
+def _box():
+    """A bordered container (falls back to a plain one on old Streamlit versions)."""
+    try:
+        return st.container(border=True)
+    except TypeError:
+        return st.container()
+
+
+def _show_report(sections: dict, evidence: list, fallback_md: str, key_prefix: str) -> None:
+    """Show the report in pieces: summary up top, each section in its own expander, sources last."""
+    if not sections:  # Older results without the section dict: show the whole report, still linked
+        st.markdown(_md(fallback_md, evidence))
+        return
+
+    st.caption("Citations such as [E4] link to their source. Hover over one to see the source name.")
+
+    # Executive summary: always visible, in its own box
+    with _box():
+        st.markdown("#### Executive Summary")
+        st.markdown(_md(sections.get("executive_summary"), evidence))
+
+    expand_all = st.toggle("Expand all sections", key=f"{key_prefix}_expand_all")
+
+    # Every other section in its own expander; Key Findings starts open
+    for key, title in REPORT_SECTION_KEYS:
+        if key in ("executive_summary", "sources_references"):
+            continue
+        text = str(sections.get(key) or "")
+        cited = len(set(re.findall(r"\bE(\d+)\b", text)))  # Distinct evidence records cited
+        label = f"{title} ({cited} citation{'s' if cited != 1 else ''})" if cited else title
+        with st.expander(label, expanded=expand_all or key == "key_findings"):
+            st.markdown(_md(text, evidence) or "Nothing was written for this section.")
+
+    # Sources: one line per document, every [E#] clickable
+    documents = len({str(e.get("url")) for e in evidence if isinstance(e, dict) and e.get("url")})
+    with st.expander(f"Sources / References ({documents} documents)", expanded=expand_all):
+        st.markdown(_md(build_references([e for e in evidence if isinstance(e, dict)]), evidence))
+
+
 def _fmt_duration(seconds: float) -> str:
     """48 -> '48 s', 192 -> '3 min 12 s'."""
     seconds = int(round(seconds or 0))
@@ -1602,19 +1723,21 @@ if "w8_t2_result" in st.session_state:
 
     # Report: shown openly with a download ONLY when approved
     with tab_report:
-        display_md = report_md.replace("$", "\\$")  # Stop dollar amounts from rendering as math
+        sections = _as_dict(result.get("report"))  # The nine sections, as reviewed (and revised)
         if approved:
             st.download_button(
                 "Download report (.md)",
-                report_md,                           # Raw markdown, without the display escaping
+                report_md,                           # The full report file, exactly as approved
                 file_name="elp_team2_report.md",
                 mime="text/markdown",
                 key="w8_t2_download",
             )
-            st.markdown(display_md)
+            _show_report(sections, evidence, report_md, "w8_report")
         else:
-            with st.expander("Unapproved draft (internal debugging only)"):
-                st.markdown(display_md)
+            # Hidden by default; shown only on request, for debugging
+            st.caption("This draft did not pass the approval checks and is shown only for debugging.")
+            if st.toggle("Show the unapproved draft", key="w8_show_draft"):
+                _show_report(sections, evidence, report_md, "w8_draft")
 
     # Reviewer: six scores drawn against the pass bar of 7, then issues and gaps
     with tab_review:
@@ -1639,14 +1762,20 @@ if "w8_t2_result" in st.session_state:
                         unsafe_allow_html=True)
 
         st.markdown("**Issues**")
-        for issue in _as_list(review.get("issues")) or ["No issues reported."]:
-            if isinstance(issue, dict):  # Normal reviewer issues are dicts
-                st.markdown(
-                    f"- **{issue.get('category', '')}** ({issue.get('section', 'overall')}): "
-                    f"{issue.get('explanation', '')}  \n  Suggested fix: {issue.get('suggested_fix', '')}"
-                )
-            else:  # Failed reviews return plain-text issues
-                st.markdown(f"- {issue}")
+        issues = _as_list(review.get("issues"))
+        if not issues:
+            st.caption("No issues reported.")
+        for issue in issues:
+            with _box():  # One box per issue so they read separately
+                if isinstance(issue, dict):  # Normal reviewer issues are dicts
+                    category = str(issue.get("category") or "general").replace("_", " ").capitalize()
+                    section = str(issue.get("section") or "overall")
+                    st.markdown(f"**{category}** in {section}")
+                    st.markdown(_md(issue.get("explanation"), evidence))
+                    if issue.get("suggested_fix"):
+                        st.caption(f"Suggested fix: {issue.get('suggested_fix')}")
+                else:  # Failed reviews return plain-text issues
+                    st.markdown(_md(issue, evidence))
 
         st.markdown("**Research gaps**")
         for gap in _as_list(review.get("research_gaps")) or ["None reported."]:
