@@ -20,11 +20,14 @@ Run (from the folder that holds this file and your .env):
 # ======================================================================
 import json                     # Encode prompts as JSON and parse model replies
 import os                       # Read API keys from environment variables
+import re                       # Pull dates out of URLs (arXiv IDs, /YYYY/MM/ paths)
 import sqlite3                  # Local database for evidence records and saved reports
 import time                     # Time each pipeline step for the live progress display
 from concurrent.futures import ThreadPoolExecutor, as_completed  # Run agents and extractions in parallel
-from datetime import datetime, timezone  # UTC timestamps for saved reports
+from datetime import date, datetime, timezone  # Report timestamps and date validation
+from email.utils import parsedate_to_datetime  # Parse Tavily dates like "Tue, 11 Mar 2025 17:00:00 GMT"
 from typing import TypedDict    # Typed state schemas for the LangGraph graph
+from urllib.parse import urlparse  # Read the domain of each source URL
 
 import streamlit as st                          # Web UI framework
 from dotenv import load_dotenv                  # Loads API keys from the .env file
@@ -121,6 +124,13 @@ Competitor, Market, and Tech/Regulatory.
 Each specialist must receive a distinct, non-overlapping objective. Include a short
 output_fields list describing what that specialist should return.
 
+Each objective is used directly as a web search query against research papers and
+formal reports only (peer-reviewed journals, conference papers, preprints, government
+and regulatory documents, SEC filings, intergovernmental reports, research institutes,
+and industry analyst reports). Write each objective as a concise, search-ready research
+query under 200 characters, using the terms such documents would use. Do not phrase
+objectives in ways that would match news, blogs, or social media.
+
 Return only valid JSON in exactly this shape:
 {
   "tasks": [
@@ -196,6 +206,182 @@ def supervisor_node(state: ResearchState) -> dict:
 
 
 # ======================================================================
+# SOURCE POLICY — research papers and formal reports only
+# One allowlist is used twice: Tavily searches only these domains, and every
+# result is re-checked in Python, so nothing else can reach the report.
+# Edit this list to add or remove trusted publishers.
+# ======================================================================
+APPROVED_DOMAINS = [
+    # Academic journals, publishers, conference proceedings, and paper repositories
+    "arxiv.org", "nature.com", "science.org", "sciencedirect.com", "cell.com", "pnas.org",
+    "springer.com", "wiley.com", "tandfonline.com", "sagepub.com", "academic.oup.com",
+    "cambridge.org", "jstor.org", "ieee.org", "acm.org", "usenix.org", "openreview.net",
+    "aclanthology.org", "proceedings.neurips.cc", "proceedings.mlr.press", "ssrn.com",
+    "nber.org", "ncbi.nlm.nih.gov", "semanticscholar.org", "informs.org", "aeaweb.org",
+    # Universities and university research centers
+    "mit.edu", "stanford.edu", "harvard.edu", "berkeley.edu", "cmu.edu", "princeton.edu",
+    "georgetown.edu", "ox.ac.uk", "cam.ac.uk", "psu.edu",
+    # U.S. government and regulators (SEC filings live on sec.gov)
+    "sec.gov", "ftc.gov", "justice.gov", "commerce.gov", "bis.gov", "bis.doc.gov", "nist.gov",
+    "energy.gov", "eia.gov", "census.gov", "bls.gov", "bea.gov", "gao.gov", "cbo.gov",
+    "congress.gov", "federalregister.gov", "whitehouse.gov", "usitc.gov", "ustr.gov",
+    "uspto.gov", "fcc.gov", "federalreserve.gov", "treasury.gov", "nsf.gov",
+    # International governments and intergovernmental organizations
+    "europa.eu", "gov.uk", "oecd.org", "imf.org", "worldbank.org", "wto.org", "un.org",
+    "itu.int", "iea.org", "bis.org", "wipo.int", "meti.go.jp",
+    # Research institutes and industry associations that publish formal reports
+    "brookings.edu", "rand.org", "csis.org", "cfr.org", "piie.com", "pewresearch.org",
+    "itif.org", "carnegieendowment.org", "belfercenter.org", "epoch.ai", "epochai.org",
+    "semiconductors.org", "semi.org",
+    # Industry analyst and consulting research firms
+    "mckinsey.com", "bcg.com", "bain.com", "deloitte.com", "pwc.com", "kpmg.com", "ey.com",
+    "accenture.com", "gartner.com", "idc.com", "forrester.com", "trendforce.com",
+    "counterpointresearch.com", "canalys.com", "omdia.tech.informa.com", "yolegroup.com",
+    "techinsights.com", "spglobal.com", "moodys.com",
+]
+
+# Hosts on approved domains that publish news or marketing rather than research
+BLOCKED_HOSTS = {"spectrum.ieee.org"}
+BLOCKED_HOST_PREFIXES = ("news.", "blog.", "blogs.", "press.", "newsroom.", "careers.", "jobs.")
+
+# The only source types allowed into the evidence store (the extractor must pick one)
+ALLOWED_SOURCE_TYPES = {
+    "peer_reviewed_paper",
+    "conference_paper",
+    "preprint",
+    "working_paper",
+    "government_or_regulatory",
+    "regulatory_filing",
+    "intergovernmental_report",
+    "research_institute_report",
+    "industry_analyst_report",
+}
+
+
+def is_approved_source(url: str) -> bool:
+    """True only if the URL's host is on (or a subdomain of) an approved domain and isn't blocked."""
+    host = (urlparse(url or "").hostname or "").lower()  # e.g. "www.nature.com"
+    if host.startswith("www."):
+        host = host[4:]                                   # Treat www.nature.com as nature.com
+    if not host or host in BLOCKED_HOSTS or host.startswith(BLOCKED_HOST_PREFIXES):
+        return False
+    # Exact domain or any subdomain of it (link.springer.com matches springer.com)
+    return any(host == domain or host.endswith("." + domain) for domain in APPROVED_DOMAINS)
+
+
+def normalize_date(value) -> str | None:
+    """Return a validated YYYY-MM-DD, YYYY-MM, or YYYY string, or None if not a real past date."""
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text or text.lower() in {"null", "none", "n/a", "unknown"}:
+        return None
+
+    today = date.today()
+
+    def _check(year: int, month: int | None = None, day: int | None = None) -> str | None:
+        # Reject impossible or implausible dates (before 1990 or in the future)
+        try:
+            d = date(year, month or 1, day or 1)
+        except ValueError:
+            return None
+        if year < 1990 or d > today:
+            return None
+        if day:
+            return d.strftime("%Y-%m-%d")
+        if month:
+            return d.strftime("%Y-%m")
+        return str(year)
+
+    # RFC 2822 style, which Tavily returns: "Tue, 11 Mar 2025 17:00:00 GMT"
+    if "," in text and ":" in text:
+        try:
+            parsed = parsedate_to_datetime(text)
+            return _check(parsed.year, parsed.month, parsed.day)
+        except (TypeError, ValueError, IndexError, OverflowError):
+            pass
+
+    # ISO style: 2025-03-11, 2025-03-11T17:00:00Z, 2025-03, or 2025
+    match = re.match(r"^(\d{4})(?:-(\d{1,2})(?:-(\d{1,2}))?)?(?:$|[T\s])", text)
+    if match:
+        year, month, day = match.groups()
+        return _check(int(year), int(month) if month else None, int(day) if day else None)
+
+    # Written-out dates the model might return: "March 11, 2025", "11 March 2025", "March 2025"
+    for fmt, has_day in (("%B %d, %Y", True), ("%d %B %Y", True), ("%b %d, %Y", True),
+                         ("%d %b %Y", True), ("%B %Y", False), ("%b %Y", False)):
+        try:
+            parsed = datetime.strptime(text, fmt)
+            return _check(parsed.year, parsed.month, parsed.day if has_day else None)
+        except ValueError:
+            continue
+    return None
+
+
+# arXiv IDs encode the submission year and month: arxiv.org/abs/2405.12345 = May 2024
+_ARXIV_ID = re.compile(r"arxiv\.org/(?:abs|pdf|html)/(\d{2})(\d{2})\.\d{4,5}")
+# Dated URL paths: /2024/05/12/ or /2024/05/
+_URL_DATE = re.compile(r"/((?:19|20)\d{2})[/-](0[1-9]|1[0-2])(?:[/-](0[1-9]|[12]\d|3[01]))?(?=[/-]|$)")
+
+
+def resolve_publication_date(source: dict, model_dates: list) -> str | None:
+    """Pick the most reliable publication date for one source, in order of trust."""
+    url = source.get("url") or ""
+
+    # 1. arXiv ID: exact submission month, always correct for arXiv papers
+    match = _ARXIV_ID.search(url)
+    if match:
+        found = normalize_date(f"20{match.group(1)}-{match.group(2)}")
+        if found:
+            return found
+
+    # 2. A date written into the URL path, which publishers set at publication
+    match = _URL_DATE.search(url)
+    if match:
+        found = normalize_date("-".join(part for part in match.groups() if part))
+        if found:
+            return found
+
+    # 3. A date the extractor found stated explicitly in the document text
+    for candidate in model_dates:
+        found = normalize_date(candidate)
+        if found:
+            return found
+
+    # 4. Tavily's estimate, which may be a last-updated date, so it's labeled as an estimate
+    found = normalize_date(source.get("published_date"))
+    return f"{found} (est.)" if found else None
+
+
+def search_approved_sources(query: str) -> list[dict]:
+    """Search ONLY approved research domains and drop anything that slips through."""
+    params = {
+        "query": query[:400],                  # Tavily rejects queries over 400 characters
+        "search_depth": "advanced",            # Higher relevance, which matters with a narrow allowlist
+        "max_results": 5,
+        "include_domains": APPROVED_DOMAINS,   # Hard filter: only these domains are searched
+        "include_raw_content": "text",         # Full page text, so the publication date can be read
+    }
+    try:
+        # include_published_date asks Tavily for its own date estimate on every result
+        response = tavily.search(**params, include_published_date=True)
+    except TypeError:
+        # Older tavily-python versions don't accept this option; search without it
+        response = tavily.search(**params)
+    results = response.get("results", []) or []
+    # Second check in Python, so a filter change on Tavily's side can't let other sources in
+    return [r for r in results if is_approved_source(r.get("url", ""))]
+
+
+# Added to every specialist's instructions
+SOURCE_POLICY_NOTE = """
+The supplied sources are restricted to research papers and formal published reports.
+Rely only on them. Say when a finding comes from a preprint (not yet peer reviewed)
+or from an industry analyst estimate. If the sources don't cover something, say so.
+""".strip()
+
+
+# ======================================================================
 # STAGE 2 — SPECIALISTS (run in parallel)
 # Each specialist searches the web for its objective and writes a brief.
 # ======================================================================
@@ -229,9 +415,18 @@ def research_assignment(assignment: dict, original_question: str) -> dict:
     objective = assignment["objective"]          # Its research objective
     output_fields = assignment["output_fields"]  # What it should report
 
-    # Search the web using the specialist's objective as the query
-    tavily_response = tavily.search(query=objective, max_results=5)
-    tavily_results = tavily_response.get("results", [])  # List of source dicts (title, url, content)
+    # Search approved research domains only, using the specialist's objective as the query
+    tavily_results = search_approved_sources(objective)  # List of source dicts (title, url, content, ...)
+
+    # No approved sources: report that honestly instead of letting the model write from nothing
+    if not tavily_results:
+        return {
+            "agent": agent,
+            "objective": objective,
+            "output_fields": output_fields,
+            "research": "No research papers or formal reports were found for this objective.",
+            "sources": [],
+        }
 
     # Turn the search results into readable numbered text for the model
     sources_text = ""
@@ -249,7 +444,8 @@ def research_assignment(assignment: dict, original_question: str) -> dict:
     {sources_text} Please provide a clear and concise research brief based on the sources provided above.
     """
 
-    system_prompt = SPECIALIST_PROMPTS.get(agent, "")  # Pick this specialist's instructions
+    # This specialist's instructions plus the shared source policy
+    system_prompt = SPECIALIST_PROMPTS.get(agent, "") + "\n\n" + SOURCE_POLICY_NOTE
     model_response = deepseek.chat.completions.create(
         model="deepseek-flash",
         messages=[
@@ -353,11 +549,11 @@ def save_evidence_records(records: list[dict]):
 init_evidence_db()  # Make sure the evidence table exists before anything is saved
 
 
-# Instructions for turning one web source into structured evidence records
+# Instructions for turning one source into structured evidence records.
+# The extractor also acts as a second gate: non-research pages yield no records.
 EVIDENCE_SYSTEM_PROMPT = """
-You are the evidence extraction step in a business research workflow.
-
-Convert useful specialist research sources into structured Evidence Records.
+You are the evidence extraction step in a professional business research workflow.
+Only research papers and formal published reports may be used as evidence.
 
 Return ONLY valid JSON in exactly this shape:
 {
@@ -367,7 +563,7 @@ Return ONLY valid JSON in exactly this shape:
       "source": "...",
       "url": "...",
       "publication_date": null,
-      "source_type": "web",
+      "source_type": "peer_reviewed_paper",
       "evidence": "...",
       "confidence": "high",
       "related_company": null,
@@ -376,26 +572,46 @@ Return ONLY valid JSON in exactly this shape:
   ]
 }
 
-Rules:
-- claim = a factual statement directly supported by the source.
-- evidence = the passage that supports the claim.
-- source and url must come from the supplied Tavily result.
-- Do not guess a publication date.
-- confidence must be high, medium, or low.
-- Do not turn analysis or recommendations into facts.
+Step 1 — Decide whether the page is eligible.
+Eligible: the page itself is a research paper (journal article, conference paper,
+preprint, or working paper) or a formal published report (government or regulatory
+document, regulatory filing such as a 10-K, intergovernmental report, research-institute
+report, or industry analyst / consulting research report).
+Not eligible: news articles, blog posts, press releases, marketing or product pages,
+social media posts, forum threads, videos, event pages, job listings, author profiles,
+or landing/index pages that only describe or link to a report.
+If the page is not eligible, return {"records": []}.
+
+Step 2 — For an eligible page, extract records using these rules:
+- claim = a factual statement directly supported by the supplied text.
+- evidence = the passage from the supplied text that supports the claim, quoted closely.
+- source = "<publishing organization or journal>: <document title>".
+- url = exactly the supplied url.
+- publication_date = the document's own publication date, ONLY if it is explicitly
+  stated in the supplied page_text or snippet (for example "Published 12 March 2024",
+  a dated report cover, a journal issue date, or a filing date). Use YYYY-MM-DD, or
+  YYYY-MM or YYYY if only that much is stated. Never use the date of an event the
+  document describes, the date of a cited work, or a copyright footer year.
+  If no publication date is explicitly stated, use null.
+- source_type = exactly one of: peer_reviewed_paper, conference_paper, preprint,
+  working_paper, government_or_regulatory, regulatory_filing, intergovernmental_report,
+  research_institute_report, industry_analyst_report.
+- confidence = high, medium, or low.
+- Do not turn analysis, forecasts, or recommendations into facts; state forecasts
+  as forecasts attributed to the source.
 """.strip()
 
 
 def extract_from_source(agent: str, objective: str, source: dict) -> list[dict]:
-    """Extract evidence records from ONE Tavily source."""
+    """Extract evidence records from ONE approved source and attach a verified date."""
     # Everything the extractor needs about this one source
     source_payload = {
         "agent": agent,
         "objective": objective,
         "title": source.get("title"),
         "url": source.get("url"),
-        "content": (source.get("content") or "")[:6000],  # Cap length to keep the prompt manageable
-        "published_date": source.get("published_date"),
+        "snippet": (source.get("content") or "")[:3000],       # Tavily's most relevant passages
+        "page_text": (source.get("raw_content") or "")[:6000],  # Start of the full page, where dates usually appear
     }
     prompt = json.dumps(source_payload, ensure_ascii=False)  # Send it as JSON
 
@@ -404,8 +620,20 @@ def extract_from_source(agent: str, objective: str, source: dict) -> list[dict]:
     except Exception:
         return []  # Skip a bad source instead of failing the whole run
 
+    if not isinstance(result, dict):  # Unusable reply
+        return []
+
     # Keep only well-formed record objects
-    return [r for r in result.get("records", []) if isinstance(r, dict)]
+    records = [r for r in result.get("records", []) if isinstance(r, dict)]
+
+    # One date for the whole source, chosen in Python from the most reliable signal
+    publication_date = resolve_publication_date(source, [r.get("publication_date") for r in records])
+
+    for record in records:
+        record["url"] = source.get("url")             # Always the real search URL, never a model-written one
+        record["publication_date"] = publication_date  # Verified date, or None if none could be found
+
+    return records
 
 
 def extract_specialist_evidence(specialist_results: list[dict]) -> list[dict]:
@@ -433,7 +661,7 @@ def extract_specialist_evidence(specialist_results: list[dict]) -> list[dict]:
 
 
 def validate_shared_evidence(records: list[dict]) -> list[dict]:
-    """Drop incomplete records and exact duplicate claim/url pairs."""
+    """Drop incomplete records, non-approved sources, and exact duplicate claim/url pairs."""
     required = ["claim", "source", "url", "source_type", "evidence"]  # Fields that must be non-empty
 
     validated = []  # Records that pass every check
@@ -447,7 +675,16 @@ def validate_shared_evidence(records: list[dict]) -> list[dict]:
         if not all(str(record.get(field) or "").strip() for field in required):
             continue
 
-        key = (record["claim"].lower(), record["url"])  # Case-insensitive duplicate key
+        # Source policy: approved domain AND an allowed research/report type
+        if not is_approved_source(str(record.get("url") or "")):
+            continue
+        # Normalize spelling ("Peer-reviewed paper" -> "peer_reviewed_paper") before checking
+        source_type = str(record.get("source_type") or "").strip().lower().replace("-", "_").replace(" ", "_")
+        if source_type not in ALLOWED_SOURCE_TYPES:
+            continue
+        record["source_type"] = source_type
+
+        key = (str(record["claim"]).lower(), str(record["url"]))  # Case-insensitive duplicate key
         if key in seen:  # Skip duplicates
             continue
 
@@ -663,7 +900,12 @@ Rules:
 - Do not invent facts, dates, metrics, source names, URLs, or citations.
 - Clearly distinguish facts, analysis, recommendations, and uncertainty.
 - If evidence is insufficient, say so.
-- Do NOT add the Reviewer/Critic today. That is Week 6.
+- Every evidence record comes from a research paper or formal report; its
+  source_type says which kind. When a claim relies on a preprint or working paper,
+  say it is not yet peer reviewed. Present figures from industry analyst or
+  consulting reports as that firm's estimate, not as settled fact.
+- For time-sensitive figures (market size, share, revenue, regulation status),
+  include the source's publication date when the evidence record has one.
 """.strip()
 
 
@@ -717,8 +959,10 @@ def build_references(evidence_records: list[dict]) -> str:
     for index, record in enumerate(evidence_records, start=1):
         source = record.get("source") or "Unknown source"
         url = record.get("url") or "No URL"
-        date = record.get("publication_date") or "Date unavailable"
-        lines.append(f"- [E{index}] {source} — {date} — {url}")  # Numbering matches the [E#] citations
+        pub_date = record.get("publication_date") or "Date not stated"
+        kind = str(record.get("source_type") or "").replace("_", " ")  # e.g. "peer reviewed paper"
+        # Numbering matches the [E#] citations in the report
+        lines.append(f"- [E{index}] {source} ({kind}, {pub_date}) — {url}")
     return "\n".join(lines) if lines else "No source records were available."
 
 
@@ -786,6 +1030,10 @@ Return ONLY valid JSON:
   ],
   "research_gaps": ["gap that may require more research later"]
 }
+
+Scoring source_quality: sources are restricted to research papers and formal reports.
+Lower the score when key claims rest only on preprints or a single analyst estimate
+without corroboration, or when time-sensitive figures are presented without dates.
 
 PASS only when all six scores are at least 7 and there are no material citation-support issues.
 """.strip()
@@ -1217,6 +1465,8 @@ if "w8_t2_result" in st.session_state:
                 "ID": f"E{i}",
                 "Claim": rec.get("claim", ""),
                 "Source": rec.get("source", ""),
+                "Type": str(rec.get("source_type") or "").replace("_", " "),
+                "Published": rec.get("publication_date") or "Not stated",
                 "Confidence": rec.get("confidence", ""),
                 "Link": rec.get("url", ""),
             }
