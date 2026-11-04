@@ -924,10 +924,21 @@ Rules:
 - For time-sensitive figures (market size, share, revenue, regulation status),
   include the source's publication date when the evidence record has one.
 
+Citations:
+- Cite ONLY with bare evidence labels such as [E4], or [E4][E7] for two. Never write URLs
+  or markdown links; the app turns the labels into links to the sources.
+- Put each citation immediately after the specific claim it supports, inside the sentence,
+  so every factual claim carries its own label. Never collect citations at the end of a
+  paragraph or section, where a reader can't tell which source supports which claim.
+
+Executive summary:
+- executive_summary is one or two developed paragraphs that answer the research question
+  directly, with every factual claim cited inline as above.
+
 Formatting (each section value is ONE markdown string):
-- Open each section with one or two short sentences, then use bullet points for
-  individual findings, risks, opportunities, and next steps. Keep any paragraph to
-  two or three sentences.
+- Every section except executive_summary opens with one or two short sentences, then
+  uses bullet points for individual findings, risks, opportunities, and next steps,
+  keeping any paragraph in those sections to two or three sentences.
 - In competitor_comparison, include a markdown table comparing the companies on the
   dimensions the evidence covers, with citations in the cells.
 - Start bullets with a short **bold lead-in** when it helps scanning.
@@ -935,12 +946,24 @@ Formatting (each section value is ONE markdown string):
 """.strip()
 
 
+# Citation links the model sometimes writes itself, e.g. [[E21][E23]](https://...) or [E4](https://...).
+# They are reduced to bare labels, because the app adds its own links and the two formats collide.
+_MODEL_GROUP_LINK = re.compile(r"\[\s*((?:\[\s*E\d+[^\]]*\]\s*)+)\]\(\s*<?[^)\s>]+>?(?:\s+\"[^\"]*\")?\s*\)")
+_MODEL_LABEL_LINK = re.compile(r"\[\s*(E\d+(?:\s*(?:,|;|and|[-\u2013\u2014])\s*E\d+)*)\s*\]\(\s*<?[^)\s>]+>?(?:\s+\"[^\"]*\")?\s*\)")
+
+
+def _strip_model_links(text: str) -> str:
+    """Turn model-written citation links back into bare [E#] labels."""
+    text = _MODEL_GROUP_LINK.sub(lambda m: m.group(1).strip(), text)  # [[E21][E23]](url) -> [E21][E23]
+    return _MODEL_LABEL_LINK.sub(lambda m: f"[{m.group(1)}]", text)    # [E4](url) -> [E4]
+
+
 def _section_text(value) -> str:
     """Turn one model-written section into markdown text, even if the model returned a list or dict."""
     if value is None:
         return ""
     if isinstance(value, str):
-        return value.strip()
+        return _strip_model_links(value).strip()
     if isinstance(value, list):
         # A list of findings becomes bullet points
         return "\n".join(f"- {_section_text(item)}" for item in value if _section_text(item))
@@ -1082,6 +1105,10 @@ Return ONLY valid JSON:
   "research_gaps": ["gap that may require more research later"]
 }
 
+Scoring citation_support: every factual claim should carry its own [E#] label directly
+after it. Citations bunched at the end of a paragraph, leaving individual claims without
+an attributable source, are a citation_support issue.
+
 Scoring source_quality: sources are restricted to research papers and formal reports.
 Lower the score when key claims rest only on preprints or a single analyst estimate
 without corroboration, or when time-sensitive figures are presented without dates.
@@ -1099,6 +1126,9 @@ If a true research gap cannot be fixed from existing evidence, acknowledge it in
 Keep the same formatting: each section is ONE markdown string with short opening
 sentences, bullet points, a markdown table in competitor_comparison, and no headings
 inside a section. Keep every [E#] citation that is still supported.
+Cite only with bare labels such as [E4]; never write URLs or markdown links.
+Put each citation directly after the claim it supports; never bunch citations at the
+end of a paragraph or section.
 """.strip()
 
 
@@ -1330,10 +1360,11 @@ def _w8_t2_ready(result) -> bool:
 #   10% accents  : primary teal #43B7A0 (buttons, finished steps, links, approved) with dark text on it;
 #                  secondary amber #E5A15B (the live step and "Running" status)
 #   Status       : red #F07B72 = not approved / failing
+# Type: IBM Plex Sans everywhere (set in config.toml for Streamlit's widgets and tables,
+#       and in the CSS below for text and the custom cards).
 # The CSS forces these colors itself, so the page stays readable even if the
 # .streamlit/config.toml theme file is missing. Every text pair meets WCAG AA (4.5:1+).
 # The pipeline is a stepper whose connectors read like circuit traces between the agents.
-# Type: IBM Plex Sans for interface text, IBM Plex Sans Condensed for titles and numbers.
 # ======================================================================
 import html as _html   # Escape any text placed inside custom HTML
 import inspect          # Check which options this Streamlit version supports
@@ -1341,9 +1372,10 @@ import inspect          # Check which options this Streamlit version supports
 # CSS kept free of blank lines so Streamlit's markdown renderer treats it as one block
 _VM_CSS = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
-:root{--vm-canvas:#171E2B;--vm-surface:#222C3A;--vm-field:#303D4D;--vm-inset:#171E2B;--vm-border:#3E4D61;--vm-ink:#DCE4ED;--vm-text-2:#B4C0CE;--vm-muted:#9AA8B8;--vm-idle-ring:#6B7A8D;--vm-done:#43B7A0;--vm-done-line:#43B7A0;--vm-chip-on:rgba(67,183,160,.16);--vm-accent:#43B7A0;--vm-accent-hover:#5CC7B1;--vm-on-accent:#171E2B;--vm-link:#43B7A0;--vm-live:#E5A15B;--vm-live-text:#E5A15B;--vm-live-tint:rgba(229,161,91,.14);--vm-pass:#43B7A0;--vm-pass-text:#6FD3BF;--vm-pass-tint:rgba(67,183,160,.16);--vm-flag:#F07B72;--vm-flag-text:#F49A92;--vm-flag-tint:rgba(240,123,114,.16);--vm-shadow:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.2);--vm-cond:'IBM Plex Sans Condensed','Arial Narrow','Segoe UI',sans-serif;}
-html,body,.stApp,[data-testid="stApp"]{background-color:var(--vm-canvas)!important;color:var(--vm-ink);font-family:'IBM Plex Sans','Segoe UI',Roboto,Helvetica,Arial,sans-serif;}
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
+:root{--vm-canvas:#171E2B;--vm-surface:#222C3A;--vm-field:#303D4D;--vm-inset:#171E2B;--vm-border:#3E4D61;--vm-ink:#DCE4ED;--vm-text-2:#B4C0CE;--vm-muted:#9AA8B8;--vm-idle-ring:#6B7A8D;--vm-done:#43B7A0;--vm-done-line:#43B7A0;--vm-chip-on:rgba(67,183,160,.16);--vm-accent:#43B7A0;--vm-accent-hover:#5CC7B1;--vm-on-accent:#171E2B;--vm-link:#43B7A0;--vm-live:#E5A15B;--vm-live-text:#E5A15B;--vm-live-tint:rgba(229,161,91,.14);--vm-pass:#43B7A0;--vm-pass-text:#6FD3BF;--vm-pass-tint:rgba(67,183,160,.16);--vm-flag:#F07B72;--vm-flag-text:#F49A92;--vm-flag-tint:rgba(240,123,114,.16);--vm-shadow:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.2);--vm-font:'IBM Plex Sans','Segoe UI',Roboto,Helvetica,Arial,sans-serif;}
+html,body,.stApp,[data-testid="stApp"]{background-color:var(--vm-canvas)!important;color:var(--vm-ink);font-family:var(--vm-font);}
+.stApp p,.stApp li,.stApp label,.stApp input,.stApp textarea,.stApp td,.stApp th,.stApp summary,.stApp h1,.stApp h2,.stApp h3,.stApp h4,.stApp h5,.stApp h6,.stApp button p{font-family:var(--vm-font)!important;}
 header[data-testid="stHeader"]{background:transparent;}
 [data-testid="stDecoration"]{display:none;}
 .stAppDeployButton{display:none;}
@@ -1354,6 +1386,8 @@ footer{visibility:hidden;}
 [data-testid="stMarkdownContainer"] p,[data-testid="stMarkdownContainer"] li{line-height:1.65;font-size:1rem;}
 [data-testid="stMarkdownContainer"] a{color:var(--vm-link);text-decoration:underline;text-underline-offset:2px;}
 [data-testid="stMarkdownContainer"] th,[data-testid="stMarkdownContainer"] td{border-color:var(--vm-border)!important;}
+[data-testid="stMarkdownContainer"] a[title]{display:inline-block;font-size:.74em;font-weight:600;line-height:1.45;padding:0 5px;margin:0 1px;border-radius:5px;background:var(--vm-pass-tint);color:var(--vm-pass-text)!important;text-decoration:none!important;vertical-align:.12em;}
+[data-testid="stMarkdownContainer"] a[title]:hover{background:rgba(67,183,160,.32);}
 [data-testid="stCaptionContainer"],[data-testid="stCaptionContainer"] p{color:var(--vm-muted)!important;opacity:1;}
 [data-testid="stWidgetLabel"] p,[data-testid="stWidgetLabel"] label{color:var(--vm-text-2)!important;}
 [data-testid="stTextInputRootElement"]{background-color:var(--vm-field)!important;border-color:var(--vm-border)!important;}
@@ -1374,16 +1408,16 @@ button[kind="primary"] p,button[kind="primaryFormSubmit"] p,[data-testid="stBase
 .vm-appbar{display:flex;align-items:center;justify-content:space-between;gap:16px;background:var(--vm-surface);border:1px solid var(--vm-border);border-radius:14px;padding:11px 18px;margin:0 0 30px;}
 .vm-brand{display:flex;align-items:center;gap:12px;}
 .vm-mark{display:flex;width:30px;height:30px;}
-.vm-name{font-family:var(--vm-cond);font-weight:600;font-size:1.15rem;color:var(--vm-ink);}
+.vm-name{font-family:var(--vm-font);font-weight:600;font-size:1.15rem;color:var(--vm-ink);}
 .vm-env{font-size:.75rem;font-weight:500;padding:2px 9px;border-radius:999px;background:var(--vm-field);color:var(--vm-text-2);}
 .vm-meta{font-size:.85rem;color:var(--vm-muted);}
-.vm-title{font-family:var(--vm-cond);font-weight:600;font-size:2rem;line-height:1.15;color:var(--vm-ink);margin:0 0 8px;max-width:900px;}
+.vm-title{font-family:var(--vm-font);font-weight:600;font-size:2rem;line-height:1.15;color:var(--vm-ink);margin:0 0 8px;max-width:900px;}
 .vm-sub{color:var(--vm-text-2);font-size:1rem;line-height:1.55;margin:0 0 22px;max-width:72ch;}
 .vm-card{background:var(--vm-surface);border:1px solid var(--vm-border);border-radius:14px;box-shadow:var(--vm-shadow);padding:18px 20px;margin:0 0 16px;}
 .vm-card.pass{border-top:3px solid var(--vm-pass);}
 .vm-card.flag{border-top:3px solid var(--vm-flag);}
 .vm-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:0 0 18px;}
-.vm-card-title{font-family:var(--vm-cond);font-weight:600;font-size:1.05rem;color:var(--vm-ink);}
+.vm-card-title{font-family:var(--vm-font);font-weight:600;font-size:1.05rem;color:var(--vm-ink);}
 .vm-activity{display:block;font-size:.88rem;color:var(--vm-text-2);margin-top:2px;}
 .vm-pill{display:inline-flex;align-items:center;gap:6px;font-size:.78rem;font-weight:500;padding:3px 10px;border-radius:999px;background:var(--vm-field);color:var(--vm-muted);white-space:nowrap;}
 .vm-pill .dot{width:7px;height:7px;border-radius:50%;background:currentColor;}
@@ -1401,7 +1435,7 @@ button[kind="primary"] p,button[kind="primaryFormSubmit"] p,[data-testid="stBase
 .vm-step.flag .vm-node,.vm-step.failed .vm-node{background:var(--vm-flag);border-color:var(--vm-flag);color:var(--vm-on-accent);}
 @keyframes vm-pulse{0%{box-shadow:0 0 0 0 rgba(229,161,91,.55);}100%{box-shadow:0 0 0 9px rgba(229,161,91,0);}}
 @keyframes vm-blink{0%,100%{opacity:1;}50%{opacity:.35;}}
-.vm-step-name{display:block;margin-top:10px;font-family:var(--vm-cond);font-weight:600;font-size:1rem;color:var(--vm-ink);}
+.vm-step-name{display:block;margin-top:10px;font-family:var(--vm-font);font-weight:600;font-size:1rem;color:var(--vm-ink);}
 .vm-step.idle .vm-step-name{color:var(--vm-text-2);}
 .vm-step-note{display:block;margin-top:2px;font-size:.85rem;line-height:1.4;color:var(--vm-muted);}
 .vm-step-time{display:block;margin-top:4px;font-size:.8rem;font-weight:500;color:var(--vm-text-2);}
@@ -1409,11 +1443,11 @@ button[kind="primary"] p,button[kind="primaryFormSubmit"] p,[data-testid="stBase
 .vm-chips{margin-top:6px;}
 .vm-chip{display:inline-block;margin:0 4px 4px 0;padding:1px 8px;border-radius:999px;border:1px solid var(--vm-border);font-size:.75rem;line-height:1.6;color:var(--vm-muted);white-space:nowrap;background:transparent;}
 .vm-chip.on{border-color:transparent;background:var(--vm-chip-on);color:var(--vm-text-2);}
-.vm-verdict-title{font-family:var(--vm-cond);font-weight:600;font-size:1.4rem;line-height:1.2;color:var(--vm-ink);margin:12px 0 6px;}
+.vm-verdict-title{font-family:var(--vm-font);font-weight:600;font-size:1.4rem;line-height:1.2;color:var(--vm-ink);margin:12px 0 6px;}
 .vm-verdict-text{font-size:.95rem;color:var(--vm-text-2);line-height:1.55;margin:0;}
 .vm-verdict-text ul{margin:8px 0 0 18px;padding:0;}
 .vm-stats{display:grid;grid-template-columns:1fr 1fr;gap:16px 18px;}
-.vm-stat b{display:block;font-family:var(--vm-cond);font-weight:600;font-size:1.35rem;line-height:1.15;color:var(--vm-ink);}
+.vm-stat b{display:block;font-family:var(--vm-font);font-weight:600;font-size:1.35rem;line-height:1.15;color:var(--vm-ink);}
 .vm-stat span{font-size:.82rem;color:var(--vm-muted);}
 .vm-scores{display:grid;gap:12px;}
 .vm-score-row{display:flex;justify-content:space-between;gap:8px;font-size:.9rem;color:var(--vm-ink);margin-bottom:5px;}
@@ -1502,14 +1536,14 @@ def _cite_link(evidence: list, n: int) -> str:
     record = evidence[n - 1] if 1 <= n <= len(evidence) and isinstance(evidence[n - 1], dict) else {}
     url = str(record.get("url") or "")
     if not url.startswith(("http://", "https://")):
-        return f"\\[E{n}\\]"  # No real URL for this number: show the label without a link
+        return f"\\[E{n}\\]"  # No real URL for this number: show the bracketed label without a link
     # Encode characters that would break a markdown link or a table cell
     for char, code in ((" ", "%20"), ("(", "%28"), (")", "%29"), ("|", "%7C"), ("<", "%3C"), (">", "%3E")):
         url = url.replace(char, code)
     # Hover text: the source's name, with characters that would break the link removed
     title = re.sub(r'[\"\\|\[\]\n\r$]', " ", str(record.get("source") or "")).strip()[:120]
     title_part = f' "{title}"' if title else ""
-    return f"[\\[E{n}\\]]({url}{title_part})"
+    return f"[E{n}]({url}{title_part})"  # Shown as a small tag by the .vm citation CSS
 
 
 def _linkify_citations(text: str, evidence: list) -> str:
@@ -1529,8 +1563,8 @@ def _linkify_citations(text: str, evidence: list) -> str:
 
 
 def _md(text, evidence: list) -> str:
-    """Prepare model text for display: stop $ from rendering as math, then link citations."""
-    return _linkify_citations(str(text or "").replace("$", "\\$"), evidence)
+    """Prepare model text for display: undo model-written links, stop $ rendering as math, link citations."""
+    return _linkify_citations(_strip_model_links(str(text or "")).replace("$", "\\$"), evidence)
 
 
 def _box():
@@ -1547,7 +1581,7 @@ def _show_report(sections: dict, evidence: list, fallback_md: str, key_prefix: s
         st.markdown(_md(fallback_md, evidence))
         return
 
-    st.caption("Citations such as [E4] link to their source. Hover over one to see the source name.")
+    st.caption("Citation tags such as E4 link to their source. Hover over one to see the source name.")
 
     # Executive summary: always visible, in its own box
     with _box():
