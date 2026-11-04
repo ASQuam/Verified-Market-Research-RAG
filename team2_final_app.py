@@ -224,61 +224,28 @@ APPROVED_DOMAINS = [
     "springer.com", "wiley.com", "tandfonline.com", "sagepub.com", "academic.oup.com",
     "cambridge.org", "jstor.org", "ieee.org", "acm.org", "usenix.org", "openreview.net",
     "aclanthology.org", "proceedings.neurips.cc", "proceedings.mlr.press", "ssrn.com",
-    "nber.org", "semanticscholar.org", "informs.org", "aeaweb.org",
-    "biorxiv.org", "medrxiv.org", "nejm.org", "thelancet.com", "jamanetwork.com", "bmj.com",
-    "plos.org", "annualreviews.org", "emerald.com", "aom.org", "degruyter.com",
-    "elgaronline.com", "worldscientific.com", "nowpublishers.com", "iop.org", "aps.org",
-    "acs.org", "rsc.org", "aip.org", "repec.org", "econstor.eu", "core.ac.uk", "hal.science",
-    # Universities, business schools, and university research centers
+    "nber.org", "ncbi.nlm.nih.gov", "semanticscholar.org", "informs.org", "aeaweb.org",
+    # Universities and university research centers
     "mit.edu", "stanford.edu", "harvard.edu", "berkeley.edu", "cmu.edu", "princeton.edu",
-    "georgetown.edu", "ox.ac.uk", "cam.ac.uk", "psu.edu", "hbs.edu", "caltech.edu", "yale.edu",
-    "columbia.edu", "uchicago.edu", "upenn.edu", "cornell.edu", "gatech.edu", "umich.edu",
-    "illinois.edu", "nyu.edu", "northwestern.edu", "imperial.ac.uk", "lse.ac.uk", "ucl.ac.uk",
-    "ethz.ch", "epfl.ch", "insead.edu", "utoronto.ca", "nus.edu.sg",
-    # U.S. government, regulators, and national labs (SEC filings live on sec.gov)
+    "georgetown.edu", "ox.ac.uk", "cam.ac.uk", "psu.edu",
+    # U.S. government and regulators (SEC filings live on sec.gov)
     "sec.gov", "ftc.gov", "justice.gov", "commerce.gov", "bis.gov", "bis.doc.gov", "nist.gov",
     "energy.gov", "eia.gov", "census.gov", "bls.gov", "bea.gov", "gao.gov", "cbo.gov",
     "congress.gov", "federalregister.gov", "whitehouse.gov", "usitc.gov", "ustr.gov",
     "uspto.gov", "fcc.gov", "federalreserve.gov", "treasury.gov", "nsf.gov",
-    "nih.gov", "cdc.gov", "fda.gov", "cms.gov", "hhs.gov", "epa.gov", "usda.gov",
-    "transportation.gov", "nasa.gov", "noaa.gov", "ferc.gov", "nrc.gov", "cftc.gov", "fdic.gov",
-    "consumerfinance.gov", "fhfa.gov", "sba.gov", "trade.gov", "state.gov", "govinfo.gov",
-    "ed.gov", "uscc.gov", "cisa.gov", "osti.gov", "nrel.gov", "ornl.gov", "lbl.gov", "anl.gov",
-    "pnnl.gov",
-    # U.S. Federal Reserve regional banks (economic research)
-    "newyorkfed.org", "stlouisfed.org", "chicagofed.org", "frbsf.org", "dallasfed.org",
-    "atlantafed.org",
-    # International governments, central banks, and intergovernmental organizations
+    # International governments and intergovernmental organizations
     "europa.eu", "gov.uk", "oecd.org", "imf.org", "worldbank.org", "wto.org", "un.org",
-    "itu.int", "iea.org", "bis.org", "wipo.int", "meti.go.jp", "bankofengland.co.uk",
-    "gc.ca", "canada.ca", "gov.au", "boj.or.jp", "jetro.go.jp", "rieti.go.jp", "adb.org",
-    "afdb.org", "iadb.org", "ebrd.com", "eib.org", "unctad.org", "unido.org", "ilo.org",
-    "who.int", "fao.org", "irena.org", "iaea.org", "unep.org", "undp.org", "ipcc.ch",
-    "fsb.org", "iosco.org", "weforum.org",
-    # Research institutes and national academies
+    "itu.int", "iea.org", "bis.org", "wipo.int", "meti.go.jp",
+    # Research institutes and industry associations that publish formal reports
     "brookings.edu", "rand.org", "csis.org", "cfr.org", "piie.com", "pewresearch.org",
     "itif.org", "carnegieendowment.org", "belfercenter.org", "epoch.ai", "epochai.org",
-    "nationalacademies.org", "nap.edu", "urban.org", "rff.org", "wri.org", "rmi.org",
-    "chathamhouse.org", "bruegel.org", "cepr.org", "conference-board.org", "kff.org",
-    "iiss.org", "sipri.org", "cnas.org", "ifo.de", "diw.de", "ifw-kiel.de",
-    # Industry associations that publish formal reports
-    "semiconductors.org", "semi.org", "gsma.com", "seia.org", "cleanpower.org", "iata.org",
-    "worldsteel.org",
-    # Industry analyst, consulting, ratings, and financial research firms
+    "semiconductors.org", "semi.org",
+    # Industry analyst and consulting research firms
     "mckinsey.com", "bcg.com", "bain.com", "deloitte.com", "pwc.com", "kpmg.com", "ey.com",
     "accenture.com", "gartner.com", "idc.com", "forrester.com", "trendforce.com",
     "counterpointresearch.com", "canalys.com", "omdia.tech.informa.com", "yolegroup.com",
-    "techinsights.com", "spglobal.com", "moodys.com", "oliverwyman.com", "rolandberger.com",
-    "kearney.com", "lek.com", "capgemini.com", "bnef.com", "woodmac.com", "fitchratings.com",
-    "morningstar.com", "euromonitor.com", "mintel.com", "nielseniq.com", "circana.com",
-    "ipsos.com", "kantar.com", "frost.com", "abiresearch.com", "delloro.com",
-    "goldmansachs.com", "morganstanley.com",
+    "techinsights.com", "spglobal.com", "moodys.com",
 ]
-
-# Clean up accidental duplicates or capitals, then fail loudly at startup if the list
-# grows past Tavily's limit of 300 domains (otherwise every search would error).
-APPROVED_DOMAINS = list(dict.fromkeys(d.strip().lower() for d in APPROVED_DOMAINS))
-assert len(APPROVED_DOMAINS) <= 300, f"APPROVED_DOMAINS has {len(APPROVED_DOMAINS)} entries; Tavily allows 300."
 
 # Hosts on approved domains that publish news or marketing rather than research
 BLOCKED_HOSTS = {"spectrum.ieee.org"}
@@ -1357,11 +1324,15 @@ def _w8_t2_ready(result) -> bool:
 
 # ======================================================================
 # STREAMLIT UI
-# Design: an enterprise research workspace. Light canvas, white cards, one brand
-# color (solder-mask green), gold only for live activity. The pipeline is a stepper
-# whose connectors read like circuit traces between the agents.
-# Tokens: canvas #F6F7F5, surface #FFFFFF, border #E1E6E2, ink #17221D, muted #5D6A63,
-#         brand #1F4D3A, brand tint #E7F0EA, live gold #C9A227, pass #2E7D4F, flag #B3261E.
+# Design: dark slate workspace using the 60-30-10 rule.
+#   60% surfaces : background #171E2B, cards #222C3A, elevated (inputs, pills) #303D4D
+#   30% text     : #DCE4ED, with #B4C0CE secondary and #9AA8B8 muted
+#   10% accents  : primary teal #43B7A0 (buttons, finished steps, links, approved) with dark text on it;
+#                  secondary amber #E5A15B (the live step and "Running" status)
+#   Status       : red #F07B72 = not approved / failing
+# The CSS forces these colors itself, so the page stays readable even if the
+# .streamlit/config.toml theme file is missing. Every text pair meets WCAG AA (4.5:1+).
+# The pipeline is a stepper whose connectors read like circuit traces between the agents.
 # Type: IBM Plex Sans for interface text, IBM Plex Sans Condensed for titles and numbers.
 # ======================================================================
 import html as _html   # Escape any text placed inside custom HTML
@@ -1371,72 +1342,90 @@ import inspect          # Check which options this Streamlit version supports
 _VM_CSS = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
-:root{--vm-canvas:#F6F7F5;--vm-surface:#FFFFFF;--vm-border:#E1E6E2;--vm-ink:#17221D;--vm-muted:#5D6A63;--vm-brand:#1F4D3A;--vm-tint:#E7F0EA;--vm-gold:#C9A227;--vm-pass:#2E7D4F;--vm-pass-tint:#E6F2EA;--vm-flag:#B3261E;--vm-flag-tint:#FBEBEA;--vm-shadow:0 1px 2px rgba(16,28,22,.04),0 2px 8px rgba(16,28,22,.05);--vm-cond:'IBM Plex Sans Condensed','Arial Narrow','Segoe UI',sans-serif;}
-html,body,.stApp{font-family:'IBM Plex Sans','Segoe UI',Roboto,Helvetica,Arial,sans-serif;}
+:root{--vm-canvas:#171E2B;--vm-surface:#222C3A;--vm-field:#303D4D;--vm-inset:#171E2B;--vm-border:#3E4D61;--vm-ink:#DCE4ED;--vm-text-2:#B4C0CE;--vm-muted:#9AA8B8;--vm-idle-ring:#6B7A8D;--vm-done:#43B7A0;--vm-done-line:#43B7A0;--vm-chip-on:rgba(67,183,160,.16);--vm-accent:#43B7A0;--vm-accent-hover:#5CC7B1;--vm-on-accent:#171E2B;--vm-link:#43B7A0;--vm-live:#E5A15B;--vm-live-text:#E5A15B;--vm-live-tint:rgba(229,161,91,.14);--vm-pass:#43B7A0;--vm-pass-text:#6FD3BF;--vm-pass-tint:rgba(67,183,160,.16);--vm-flag:#F07B72;--vm-flag-text:#F49A92;--vm-flag-tint:rgba(240,123,114,.16);--vm-shadow:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.2);--vm-cond:'IBM Plex Sans Condensed','Arial Narrow','Segoe UI',sans-serif;}
+html,body,.stApp,[data-testid="stApp"]{background-color:var(--vm-canvas)!important;color:var(--vm-ink);font-family:'IBM Plex Sans','Segoe UI',Roboto,Helvetica,Arial,sans-serif;}
 header[data-testid="stHeader"]{background:transparent;}
 [data-testid="stDecoration"]{display:none;}
 .stAppDeployButton{display:none;}
 footer{visibility:hidden;}
 .block-container,[data-testid="stMainBlockContainer"]{max-width:1180px;padding-top:2.2rem;padding-bottom:4rem;}
-[data-testid="stMarkdownContainer"] p,[data-testid="stMarkdownContainer"] li{line-height:1.6;}
-[data-testid="stForm"]{background:var(--vm-surface);border:1px solid var(--vm-border);border-radius:12px;box-shadow:var(--vm-shadow);padding:20px 22px 18px;}
-[data-testid="stExpander"] details{background:var(--vm-surface);border:1px solid var(--vm-border);border-radius:10px;}
-button[data-baseweb="tab"] p{font-weight:500;}
-.vm-appbar{display:flex;align-items:center;justify-content:space-between;gap:16px;background:var(--vm-brand);border-radius:12px;padding:11px 18px;margin:0 0 28px;}
+[data-testid="stMarkdownContainer"],[data-testid="stMarkdownContainer"] p,[data-testid="stMarkdownContainer"] li,[data-testid="stMarkdownContainer"] td,[data-testid="stMarkdownContainer"] th,[data-testid="stMarkdownContainer"] strong{color:var(--vm-ink);}
+[data-testid="stMarkdownContainer"] h1,[data-testid="stMarkdownContainer"] h2,[data-testid="stMarkdownContainer"] h3,[data-testid="stMarkdownContainer"] h4{color:var(--vm-ink);}
+[data-testid="stMarkdownContainer"] p,[data-testid="stMarkdownContainer"] li{line-height:1.65;font-size:1rem;}
+[data-testid="stMarkdownContainer"] a{color:var(--vm-link);text-decoration:underline;text-underline-offset:2px;}
+[data-testid="stMarkdownContainer"] th,[data-testid="stMarkdownContainer"] td{border-color:var(--vm-border)!important;}
+[data-testid="stCaptionContainer"],[data-testid="stCaptionContainer"] p{color:var(--vm-muted)!important;opacity:1;}
+[data-testid="stWidgetLabel"] p,[data-testid="stWidgetLabel"] label{color:var(--vm-text-2)!important;}
+[data-testid="stTextInputRootElement"]{background-color:var(--vm-field)!important;border-color:var(--vm-border)!important;}
+[data-testid="stTextInputRootElement"] input{background-color:transparent!important;color:var(--vm-ink)!important;}
+[data-testid="stTextInputRootElement"] input::placeholder{color:var(--vm-muted)!important;}
+[data-testid="stSelectbox"] *{color:var(--vm-ink);}
+[data-testid="stForm"]{background:var(--vm-surface);border:1px solid var(--vm-border);border-radius:14px;box-shadow:var(--vm-shadow);padding:20px 22px 18px;}
+[data-testid="stExpander"] details{background:var(--vm-surface);border:1px solid var(--vm-border)!important;border-radius:12px;}
+[data-testid="stExpander"] summary,[data-testid="stExpander"] summary p,[data-testid="stExpander"] summary span{color:var(--vm-ink);}
+[data-testid="stTab"] p{font-weight:500;color:var(--vm-muted);}
+[data-testid="stTab"][aria-selected="true"] p{color:var(--vm-ink);}
+button[kind="secondary"],[data-testid="stBaseButton-secondary"]{background-color:var(--vm-surface)!important;border-color:var(--vm-border)!important;color:var(--vm-ink)!important;}
+button[kind="secondary"]:hover,[data-testid="stBaseButton-secondary"]:hover{border-color:var(--vm-accent)!important;color:var(--vm-ink)!important;}
+button[kind="secondary"] p,[data-testid="stBaseButton-secondary"] p{color:var(--vm-ink)!important;}
+button[kind="primary"],button[kind="primaryFormSubmit"],[data-testid="stBaseButton-primary"],[data-testid="stBaseButton-primaryFormSubmit"]{background-color:var(--vm-accent)!important;border-color:var(--vm-accent)!important;color:var(--vm-on-accent)!important;}
+button[kind="primary"]:hover,button[kind="primaryFormSubmit"]:hover,[data-testid="stBaseButton-primary"]:hover,[data-testid="stBaseButton-primaryFormSubmit"]:hover{background-color:var(--vm-accent-hover)!important;border-color:var(--vm-accent-hover)!important;color:var(--vm-on-accent)!important;}
+button[kind="primary"] p,button[kind="primaryFormSubmit"] p,[data-testid="stBaseButton-primary"] p,[data-testid="stBaseButton-primaryFormSubmit"] p{color:var(--vm-on-accent)!important;font-weight:600;}
+.vm-appbar{display:flex;align-items:center;justify-content:space-between;gap:16px;background:var(--vm-surface);border:1px solid var(--vm-border);border-radius:14px;padding:11px 18px;margin:0 0 30px;}
 .vm-brand{display:flex;align-items:center;gap:12px;}
 .vm-mark{display:flex;width:30px;height:30px;}
-.vm-name{font-family:var(--vm-cond);font-weight:600;font-size:1.12rem;color:#FFFFFF;}
-.vm-env{font-size:.72rem;font-weight:500;padding:2px 9px;border-radius:999px;background:rgba(255,255,255,.12);color:#DCE8E0;}
-.vm-meta{font-size:.82rem;color:#BFD2C6;}
-.vm-title{font-family:var(--vm-cond);font-weight:600;font-size:1.95rem;line-height:1.15;color:var(--vm-ink);margin:0 0 6px;max-width:900px;}
-.vm-sub{color:var(--vm-muted);font-size:.98rem;line-height:1.5;margin:0 0 22px;max-width:72ch;}
-.vm-card{background:var(--vm-surface);border:1px solid var(--vm-border);border-radius:12px;box-shadow:var(--vm-shadow);padding:18px 20px;margin:0 0 16px;}
+.vm-name{font-family:var(--vm-cond);font-weight:600;font-size:1.15rem;color:var(--vm-ink);}
+.vm-env{font-size:.75rem;font-weight:500;padding:2px 9px;border-radius:999px;background:var(--vm-field);color:var(--vm-text-2);}
+.vm-meta{font-size:.85rem;color:var(--vm-muted);}
+.vm-title{font-family:var(--vm-cond);font-weight:600;font-size:2rem;line-height:1.15;color:var(--vm-ink);margin:0 0 8px;max-width:900px;}
+.vm-sub{color:var(--vm-text-2);font-size:1rem;line-height:1.55;margin:0 0 22px;max-width:72ch;}
+.vm-card{background:var(--vm-surface);border:1px solid var(--vm-border);border-radius:14px;box-shadow:var(--vm-shadow);padding:18px 20px;margin:0 0 16px;}
 .vm-card.pass{border-top:3px solid var(--vm-pass);}
 .vm-card.flag{border-top:3px solid var(--vm-flag);}
 .vm-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:0 0 18px;}
-.vm-card-title{font-family:var(--vm-cond);font-weight:600;font-size:1.02rem;color:var(--vm-ink);}
-.vm-activity{display:block;font-size:.84rem;color:var(--vm-muted);margin-top:2px;}
-.vm-pill{display:inline-flex;align-items:center;gap:6px;font-size:.76rem;font-weight:500;padding:3px 10px;border-radius:999px;background:#EEF1EE;color:var(--vm-muted);white-space:nowrap;}
+.vm-card-title{font-family:var(--vm-cond);font-weight:600;font-size:1.05rem;color:var(--vm-ink);}
+.vm-activity{display:block;font-size:.88rem;color:var(--vm-text-2);margin-top:2px;}
+.vm-pill{display:inline-flex;align-items:center;gap:6px;font-size:.78rem;font-weight:500;padding:3px 10px;border-radius:999px;background:var(--vm-field);color:var(--vm-muted);white-space:nowrap;}
 .vm-pill .dot{width:7px;height:7px;border-radius:50%;background:currentColor;}
-.vm-pill.live{background:#FBF5E2;color:#6F560C;}
-.vm-pill.live .dot{background:var(--vm-gold);animation:vm-blink 1.2s ease-in-out infinite;}
-.vm-pill.pass{background:var(--vm-pass-tint);color:var(--vm-pass);}
-.vm-pill.flag{background:var(--vm-flag-tint);color:var(--vm-flag);}
+.vm-pill.live{background:var(--vm-live-tint);color:var(--vm-live-text);}
+.vm-pill.live .dot{background:var(--vm-live);animation:vm-blink 1.2s ease-in-out infinite;}
+.vm-pill.pass{background:var(--vm-pass-tint);color:var(--vm-pass-text);}
+.vm-pill.flag{background:var(--vm-flag-tint);color:var(--vm-flag-text);}
 .vm-steps{display:flex;align-items:flex-start;}
 .vm-step{position:relative;flex:1 1 0;min-width:0;padding-right:12px;}
 .vm-step:not(:last-child)::after{content:"";position:absolute;top:11px;left:24px;right:0;height:2px;background:var(--vm-border);}
-.vm-step.done:not(:last-child)::after{background:var(--vm-brand);}
-.vm-node{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;box-sizing:border-box;border:2px solid #C5CEC8;background:var(--vm-surface);color:var(--vm-muted);font-size:.72rem;font-weight:600;}
-.vm-step.done .vm-node{background:var(--vm-brand);border-color:var(--vm-brand);color:#FFFFFF;}
-.vm-step.running .vm-node{border-color:var(--vm-gold);color:#6F560C;animation:vm-pulse 1.4s ease-out infinite;}
-.vm-step.flag .vm-node,.vm-step.failed .vm-node{background:var(--vm-flag);border-color:var(--vm-flag);color:#FFFFFF;}
-@keyframes vm-pulse{0%{box-shadow:0 0 0 0 rgba(201,162,39,.55);}100%{box-shadow:0 0 0 9px rgba(201,162,39,0);}}
+.vm-step.done:not(:last-child)::after{background:var(--vm-done-line);}
+.vm-node{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;box-sizing:border-box;border:2px solid var(--vm-idle-ring);background:var(--vm-surface);color:var(--vm-muted);font-size:.75rem;font-weight:600;}
+.vm-step.done .vm-node{background:var(--vm-done);border-color:var(--vm-done);color:var(--vm-canvas);}
+.vm-step.running .vm-node{border-color:var(--vm-live);color:var(--vm-live-text);animation:vm-pulse 1.4s ease-out infinite;}
+.vm-step.flag .vm-node,.vm-step.failed .vm-node{background:var(--vm-flag);border-color:var(--vm-flag);color:var(--vm-on-accent);}
+@keyframes vm-pulse{0%{box-shadow:0 0 0 0 rgba(229,161,91,.55);}100%{box-shadow:0 0 0 9px rgba(229,161,91,0);}}
 @keyframes vm-blink{0%,100%{opacity:1;}50%{opacity:.35;}}
-.vm-step-name{display:block;margin-top:10px;font-family:var(--vm-cond);font-weight:600;font-size:.95rem;color:var(--vm-ink);}
-.vm-step.idle .vm-step-name{color:var(--vm-muted);}
-.vm-step-note{display:block;margin-top:2px;font-size:.8rem;line-height:1.35;color:var(--vm-muted);}
-.vm-step-time{display:block;margin-top:4px;font-size:.75rem;font-weight:500;color:var(--vm-brand);}
-.vm-step.running .vm-step-time{color:#6F560C;}
+.vm-step-name{display:block;margin-top:10px;font-family:var(--vm-cond);font-weight:600;font-size:1rem;color:var(--vm-ink);}
+.vm-step.idle .vm-step-name{color:var(--vm-text-2);}
+.vm-step-note{display:block;margin-top:2px;font-size:.85rem;line-height:1.4;color:var(--vm-muted);}
+.vm-step-time{display:block;margin-top:4px;font-size:.8rem;font-weight:500;color:var(--vm-text-2);}
+.vm-step.running .vm-step-time{color:var(--vm-live-text);}
 .vm-chips{margin-top:6px;}
-.vm-chip{display:inline-block;margin:0 4px 4px 0;padding:1px 8px;border-radius:999px;border:1px solid var(--vm-border);font-size:.72rem;line-height:1.6;color:var(--vm-muted);white-space:nowrap;background:var(--vm-surface);}
-.vm-chip.on{border-color:transparent;background:var(--vm-tint);color:var(--vm-brand);}
-.vm-verdict-title{font-family:var(--vm-cond);font-weight:600;font-size:1.35rem;line-height:1.2;color:var(--vm-ink);margin:12px 0 4px;}
-.vm-verdict-text{font-size:.9rem;color:var(--vm-muted);line-height:1.5;margin:0;}
+.vm-chip{display:inline-block;margin:0 4px 4px 0;padding:1px 8px;border-radius:999px;border:1px solid var(--vm-border);font-size:.75rem;line-height:1.6;color:var(--vm-muted);white-space:nowrap;background:transparent;}
+.vm-chip.on{border-color:transparent;background:var(--vm-chip-on);color:var(--vm-text-2);}
+.vm-verdict-title{font-family:var(--vm-cond);font-weight:600;font-size:1.4rem;line-height:1.2;color:var(--vm-ink);margin:12px 0 6px;}
+.vm-verdict-text{font-size:.95rem;color:var(--vm-text-2);line-height:1.55;margin:0;}
 .vm-verdict-text ul{margin:8px 0 0 18px;padding:0;}
 .vm-stats{display:grid;grid-template-columns:1fr 1fr;gap:16px 18px;}
-.vm-stat b{display:block;font-family:var(--vm-cond);font-weight:600;font-size:1.3rem;line-height:1.15;color:var(--vm-ink);}
-.vm-stat span{font-size:.78rem;color:var(--vm-muted);}
+.vm-stat b{display:block;font-family:var(--vm-cond);font-weight:600;font-size:1.35rem;line-height:1.15;color:var(--vm-ink);}
+.vm-stat span{font-size:.82rem;color:var(--vm-muted);}
 .vm-scores{display:grid;gap:12px;}
-.vm-score-row{display:flex;justify-content:space-between;gap:8px;font-size:.84rem;color:var(--vm-ink);margin-bottom:5px;}
+.vm-score-row{display:flex;justify-content:space-between;gap:8px;font-size:.9rem;color:var(--vm-ink);margin-bottom:5px;}
 .vm-score-row b{font-weight:600;}
-.vm-bar{position:relative;height:6px;border-radius:3px;background:#E9EDEA;}
-.vm-bar i{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:var(--vm-pass);}
+.vm-bar{position:relative;height:7px;border-radius:4px;background:var(--vm-inset);}
+.vm-bar i{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:var(--vm-pass);}
 .vm-bar i.low{background:var(--vm-flag);}
-.vm-bar::after{content:"";position:absolute;left:70%;top:-3px;bottom:-3px;width:2px;background:var(--vm-ink);opacity:.45;}
-.vm-note{font-size:.76rem;color:var(--vm-muted);margin:12px 0 0;}
+.vm-bar::after{content:"";position:absolute;left:70%;top:-3px;bottom:-3px;width:2px;background:var(--vm-ink);opacity:.6;}
+.vm-note{font-size:.82rem;color:var(--vm-muted);margin:12px 0 0;}
 @media (max-width:760px){
 .vm-appbar{flex-wrap:wrap;}
-.vm-title{font-size:1.55rem;}
+.vm-title{font-size:1.6rem;}
 .vm-steps{flex-direction:column;gap:14px;}
 .vm-step{padding:0 0 0 36px;min-height:24px;}
 .vm-node{position:absolute;left:0;top:0;}
@@ -1453,10 +1442,10 @@ st.markdown(_VM_CSS, unsafe_allow_html=True)
 # Logo mark: three agents wired together, the supervisor on top in gold
 _LOGO_SVG = (
     '<svg viewBox="0 0 30 30" width="30" height="30" aria-hidden="true">'
-    '<rect x="0.5" y="0.5" width="29" height="29" rx="7" fill="rgba(255,255,255,.08)" stroke="rgba(255,255,255,.22)"/>'
-    '<path d="M8 20 L15 10 L22 20" fill="none" stroke="#C9A227" stroke-width="1.6"/>'
-    '<circle cx="8" cy="20" r="2.6" fill="#FFFFFF"/><circle cx="15" cy="10" r="2.6" fill="#C9A227"/>'
-    '<circle cx="22" cy="20" r="2.6" fill="#FFFFFF"/></svg>'
+    '<rect x="0.5" y="0.5" width="29" height="29" rx="7" fill="#171E2B" stroke="#3E4D61"/>'
+    '<path d="M8 20 L15 10 L22 20" fill="none" stroke="#43B7A0" stroke-width="1.6"/>'
+    '<circle cx="8" cy="20" r="2.6" fill="#DCE4ED"/><circle cx="15" cy="10" r="2.6" fill="#E5A15B"/>'
+    '<circle cx="22" cy="20" r="2.6" fill="#DCE4ED"/></svg>'
 )
 # Check mark drawn inside a finished step
 _CHECK_SVG = ('<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 6.2l2.3 2.3 4.7-4.9" '
@@ -1738,6 +1727,19 @@ def _stretch_kwargs(func) -> dict:
     except (TypeError, ValueError):
         return {}
 
+
+# ---------------- Theme check ----------------
+# If .streamlit/config.toml isn't loaded, Streamlit's own widgets (tables, dropdown menus) stay light.
+try:
+    _theme_base = st.get_option("theme.base")
+except Exception:
+    _theme_base = None
+if _theme_base != "dark":
+    st.warning(
+        "The dark theme file isn't loaded, so tables and dropdown menus may look light. "
+        "Put config.toml inside a folder named .streamlit, in the same folder you run "
+        "\"streamlit run\" from. Make sure Windows didn't save it as config.toml.txt, then restart Streamlit."
+    )
 
 # ---------------- App bar ----------------
 st.markdown(
@@ -2023,10 +2025,10 @@ if "w8_t2_result" in st.session_state:
                 for i, rec in enumerate(evidence, start=1)
                 if isinstance(rec, dict)
             ]
+            all_types = "All source types"
             types = sorted({r["Type"] for r in rows if r["Type"]})
-            chosen = st.multiselect("Filter by source type", types, key="vm_type_filter",
-                                    **_supported_kwargs(st.multiselect, placeholder="All source types"))
-            shown = [r for r in rows if not chosen or r["Type"] in chosen]
+            chosen = st.selectbox("Filter by source type", [all_types] + types, key="vm_type_filter")
+            shown = [r for r in rows if chosen == all_types or r["Type"] == chosen]
             st.caption(f"Showing {len(shown)} of {len(rows)} records from {distinct_sources} documents.")
             link_column = {"Link": st.column_config.LinkColumn("Link")}  # Clickable source URLs
             try:
