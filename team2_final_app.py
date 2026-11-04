@@ -224,28 +224,61 @@ APPROVED_DOMAINS = [
     "springer.com", "wiley.com", "tandfonline.com", "sagepub.com", "academic.oup.com",
     "cambridge.org", "jstor.org", "ieee.org", "acm.org", "usenix.org", "openreview.net",
     "aclanthology.org", "proceedings.neurips.cc", "proceedings.mlr.press", "ssrn.com",
-    "nber.org", "ncbi.nlm.nih.gov", "semanticscholar.org", "informs.org", "aeaweb.org",
-    # Universities and university research centers
+    "nber.org", "semanticscholar.org", "informs.org", "aeaweb.org",
+    "biorxiv.org", "medrxiv.org", "nejm.org", "thelancet.com", "jamanetwork.com", "bmj.com",
+    "plos.org", "annualreviews.org", "emerald.com", "aom.org", "degruyter.com",
+    "elgaronline.com", "worldscientific.com", "nowpublishers.com", "iop.org", "aps.org",
+    "acs.org", "rsc.org", "aip.org", "repec.org", "econstor.eu", "core.ac.uk", "hal.science",
+    # Universities, business schools, and university research centers
     "mit.edu", "stanford.edu", "harvard.edu", "berkeley.edu", "cmu.edu", "princeton.edu",
-    "georgetown.edu", "ox.ac.uk", "cam.ac.uk", "psu.edu",
-    # U.S. government and regulators (SEC filings live on sec.gov)
+    "georgetown.edu", "ox.ac.uk", "cam.ac.uk", "psu.edu", "hbs.edu", "caltech.edu", "yale.edu",
+    "columbia.edu", "uchicago.edu", "upenn.edu", "cornell.edu", "gatech.edu", "umich.edu",
+    "illinois.edu", "nyu.edu", "northwestern.edu", "imperial.ac.uk", "lse.ac.uk", "ucl.ac.uk",
+    "ethz.ch", "epfl.ch", "insead.edu", "utoronto.ca", "nus.edu.sg",
+    # U.S. government, regulators, and national labs (SEC filings live on sec.gov)
     "sec.gov", "ftc.gov", "justice.gov", "commerce.gov", "bis.gov", "bis.doc.gov", "nist.gov",
     "energy.gov", "eia.gov", "census.gov", "bls.gov", "bea.gov", "gao.gov", "cbo.gov",
     "congress.gov", "federalregister.gov", "whitehouse.gov", "usitc.gov", "ustr.gov",
     "uspto.gov", "fcc.gov", "federalreserve.gov", "treasury.gov", "nsf.gov",
-    # International governments and intergovernmental organizations
+    "nih.gov", "cdc.gov", "fda.gov", "cms.gov", "hhs.gov", "epa.gov", "usda.gov",
+    "transportation.gov", "nasa.gov", "noaa.gov", "ferc.gov", "nrc.gov", "cftc.gov", "fdic.gov",
+    "consumerfinance.gov", "fhfa.gov", "sba.gov", "trade.gov", "state.gov", "govinfo.gov",
+    "ed.gov", "uscc.gov", "cisa.gov", "osti.gov", "nrel.gov", "ornl.gov", "lbl.gov", "anl.gov",
+    "pnnl.gov",
+    # U.S. Federal Reserve regional banks (economic research)
+    "newyorkfed.org", "stlouisfed.org", "chicagofed.org", "frbsf.org", "dallasfed.org",
+    "atlantafed.org",
+    # International governments, central banks, and intergovernmental organizations
     "europa.eu", "gov.uk", "oecd.org", "imf.org", "worldbank.org", "wto.org", "un.org",
-    "itu.int", "iea.org", "bis.org", "wipo.int", "meti.go.jp",
-    # Research institutes and industry associations that publish formal reports
+    "itu.int", "iea.org", "bis.org", "wipo.int", "meti.go.jp", "bankofengland.co.uk",
+    "gc.ca", "canada.ca", "gov.au", "boj.or.jp", "jetro.go.jp", "rieti.go.jp", "adb.org",
+    "afdb.org", "iadb.org", "ebrd.com", "eib.org", "unctad.org", "unido.org", "ilo.org",
+    "who.int", "fao.org", "irena.org", "iaea.org", "unep.org", "undp.org", "ipcc.ch",
+    "fsb.org", "iosco.org", "weforum.org",
+    # Research institutes and national academies
     "brookings.edu", "rand.org", "csis.org", "cfr.org", "piie.com", "pewresearch.org",
     "itif.org", "carnegieendowment.org", "belfercenter.org", "epoch.ai", "epochai.org",
-    "semiconductors.org", "semi.org",
-    # Industry analyst and consulting research firms
+    "nationalacademies.org", "nap.edu", "urban.org", "rff.org", "wri.org", "rmi.org",
+    "chathamhouse.org", "bruegel.org", "cepr.org", "conference-board.org", "kff.org",
+    "iiss.org", "sipri.org", "cnas.org", "ifo.de", "diw.de", "ifw-kiel.de",
+    # Industry associations that publish formal reports
+    "semiconductors.org", "semi.org", "gsma.com", "seia.org", "cleanpower.org", "iata.org",
+    "worldsteel.org",
+    # Industry analyst, consulting, ratings, and financial research firms
     "mckinsey.com", "bcg.com", "bain.com", "deloitte.com", "pwc.com", "kpmg.com", "ey.com",
     "accenture.com", "gartner.com", "idc.com", "forrester.com", "trendforce.com",
     "counterpointresearch.com", "canalys.com", "omdia.tech.informa.com", "yolegroup.com",
-    "techinsights.com", "spglobal.com", "moodys.com",
+    "techinsights.com", "spglobal.com", "moodys.com", "oliverwyman.com", "rolandberger.com",
+    "kearney.com", "lek.com", "capgemini.com", "bnef.com", "woodmac.com", "fitchratings.com",
+    "morningstar.com", "euromonitor.com", "mintel.com", "nielseniq.com", "circana.com",
+    "ipsos.com", "kantar.com", "frost.com", "abiresearch.com", "delloro.com",
+    "goldmansachs.com", "morganstanley.com",
 ]
+
+# Clean up accidental duplicates or capitals, then fail loudly at startup if the list
+# grows past Tavily's limit of 300 domains (otherwise every search would error).
+APPROVED_DOMAINS = list(dict.fromkeys(d.strip().lower() for d in APPROVED_DOMAINS))
+assert len(APPROVED_DOMAINS) <= 300, f"APPROVED_DOMAINS has {len(APPROVED_DOMAINS)} entries; Tavily allows 300."
 
 # Hosts on approved domains that publish news or marketing rather than research
 BLOCKED_HOSTS = {"spectrum.ieee.org"}
@@ -1323,76 +1356,113 @@ def _w8_t2_ready(result) -> bool:
 
 
 # ======================================================================
-# STREAMLIT UI — visual design
-# Concept: the agents are drawn as a circuit board. Each station's contact
-# pad lights up gold as that agent finishes, so the pipeline is visible live.
-# Palette: board #F3F5F2, ink #1B2A24, solder mask #1F4D3A, contact gold #C9A227,
-#          pass #2E7D4F, flag #B3261E.  Type: IBM Plex Sans + Plex Sans Condensed.
+# STREAMLIT UI
+# Design: an enterprise research workspace. Light canvas, white cards, one brand
+# color (solder-mask green), gold only for live activity. The pipeline is a stepper
+# whose connectors read like circuit traces between the agents.
+# Tokens: canvas #F6F7F5, surface #FFFFFF, border #E1E6E2, ink #17221D, muted #5D6A63,
+#         brand #1F4D3A, brand tint #E7F0EA, live gold #C9A227, pass #2E7D4F, flag #B3261E.
+# Type: IBM Plex Sans for interface text, IBM Plex Sans Condensed for titles and numbers.
 # ======================================================================
-import html as _html  # Escape any text placed inside custom HTML
+import html as _html   # Escape any text placed inside custom HTML
+import inspect          # Check which options this Streamlit version supports
 
 # CSS kept free of blank lines so Streamlit's markdown renderer treats it as one block
-_W8_CSS = """
+_VM_CSS = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
-:root{--rd-board:#F3F5F2;--rd-ink:#1B2A24;--rd-solder:#1F4D3A;--rd-gold:#C9A227;--rd-rule:#D5DCD6;--rd-pass:#2E7D4F;--rd-flag:#B3261E;--rd-muted:#56665E;}
+:root{--vm-canvas:#F6F7F5;--vm-surface:#FFFFFF;--vm-border:#E1E6E2;--vm-ink:#17221D;--vm-muted:#5D6A63;--vm-brand:#1F4D3A;--vm-tint:#E7F0EA;--vm-gold:#C9A227;--vm-pass:#2E7D4F;--vm-pass-tint:#E6F2EA;--vm-flag:#B3261E;--vm-flag-tint:#FBEBEA;--vm-shadow:0 1px 2px rgba(16,28,22,.04),0 2px 8px rgba(16,28,22,.05);--vm-cond:'IBM Plex Sans Condensed','Arial Narrow','Segoe UI',sans-serif;}
 html,body,.stApp{font-family:'IBM Plex Sans','Segoe UI',Roboto,Helvetica,Arial,sans-serif;}
+header[data-testid="stHeader"]{background:transparent;}
+[data-testid="stDecoration"]{display:none;}
+.stAppDeployButton{display:none;}
+footer{visibility:hidden;}
+.block-container,[data-testid="stMainBlockContainer"]{max-width:1180px;padding-top:2.2rem;padding-bottom:4rem;}
 [data-testid="stMarkdownContainer"] p,[data-testid="stMarkdownContainer"] li{line-height:1.6;}
-.rd-hero{background-color:var(--rd-solder);background-image:radial-gradient(rgba(234,242,236,.07) 1px,transparent 1px);background-size:18px 18px;color:#EAF2EC;border-radius:14px;padding:30px 28px 24px;margin:0 0 6px;}
-.rd-title{font-family:'IBM Plex Sans Condensed','Arial Narrow','Segoe UI',sans-serif;font-weight:600;font-size:2.15rem;line-height:1.08;letter-spacing:-.01em;color:#FFFFFF;margin:0 0 10px;}
-.rd-lede{color:#C9D8CF;font-size:1rem;line-height:1.55;max-width:62ch;margin:0 0 26px;}
-.rd-circuit{display:flex;align-items:flex-start;}
-.rd-station{position:relative;flex:1 1 0;min-width:0;padding-right:10px;}
-.rd-station:not(:last-child)::after{content:"";position:absolute;top:7px;left:14px;right:0;height:2px;background:rgba(234,242,236,.22);}
-.rd-station.done:not(:last-child)::after{background:var(--rd-gold);}
-.rd-pad{position:relative;z-index:1;display:block;width:14px;height:14px;border-radius:50%;border:2px solid rgba(234,242,236,.45);box-sizing:border-box;background:var(--rd-solder);}
-.rd-station.done .rd-pad{background:var(--rd-gold);border-color:var(--rd-gold);}
-.rd-station.flag .rd-pad{background:var(--rd-flag);border-color:#F2B8B5;}
-.rd-station.failed .rd-pad{background:var(--rd-flag);border-color:#F2B8B5;}
-.rd-station.running .rd-pad{border-color:var(--rd-gold);animation:rd-pulse 1.4s ease-out infinite;}
-@keyframes rd-pulse{0%{box-shadow:0 0 0 0 rgba(201,162,39,.6);}100%{box-shadow:0 0 0 10px rgba(201,162,39,0);}}
-.rd-name{display:block;margin-top:11px;font-family:'IBM Plex Sans Condensed','Arial Narrow','Segoe UI',sans-serif;font-weight:600;font-size:.98rem;color:rgba(255,255,255,.62);}
-.rd-station.done .rd-name,.rd-station.running .rd-name,.rd-station.failed .rd-name{color:#FFFFFF;}
-.rd-note{display:block;margin-top:2px;font-size:.8rem;line-height:1.35;color:#A9BDB2;}
-.rd-chips{margin-top:6px;}
-.rd-chip{display:inline-block;margin:0 4px 4px 0;padding:1px 8px;border-radius:999px;border:1px solid rgba(234,242,236,.28);font-size:.72rem;line-height:1.6;color:#A9BDB2;white-space:nowrap;}
-.rd-chip.on{border-color:var(--rd-gold);color:#FFFFFF;}
-.rd-runline{margin-top:20px;padding-top:14px;border-top:1px solid rgba(234,242,236,.16);font-size:.88rem;color:#C9D8CF;}
-.rd-verdict{background:#FFFFFF;border-left:4px solid var(--rd-pass);border-radius:0 12px 12px 0;padding:18px 22px 16px;margin:20px 0 10px;}
-.rd-verdict.flag{border-left-color:var(--rd-flag);}
-.rd-verdict-title{font-family:'IBM Plex Sans Condensed','Arial Narrow','Segoe UI',sans-serif;font-weight:600;font-size:1.4rem;line-height:1.2;color:var(--rd-ink);margin:0 0 4px;}
-.rd-verdict-text{color:var(--rd-muted);font-size:.95rem;line-height:1.5;max-width:68ch;margin:0 0 14px;}
-.rd-verdict-text ul{margin:6px 0 0 18px;padding:0;}
-.rd-readouts{display:flex;flex-wrap:wrap;gap:10px 34px;}
-.rd-readout b{display:block;font-family:'IBM Plex Sans Condensed','Arial Narrow','Segoe UI',sans-serif;font-weight:600;font-size:1.35rem;line-height:1.15;color:var(--rd-ink);}
-.rd-readout span{font-size:.8rem;color:var(--rd-muted);}
-.rd-scores{display:grid;gap:12px;margin:6px 0 8px;}
-.rd-score{display:grid;grid-template-columns:150px 1fr 48px;align-items:center;column-gap:14px;font-size:.92rem;color:var(--rd-ink);}
-.rd-bar{position:relative;height:8px;border-radius:4px;background:var(--rd-rule);}
-.rd-bar i{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:var(--rd-pass);}
-.rd-bar i.low{background:var(--rd-flag);}
-.rd-bar::after{content:"";position:absolute;left:70%;top:-4px;bottom:-4px;width:2px;background:var(--rd-ink);opacity:.5;}
-.rd-score-value{text-align:right;font-weight:600;}
-.rd-scale-note{font-size:.8rem;color:var(--rd-muted);margin:0 0 18px;}
-@media (max-width:640px){
-.rd-hero{padding:24px 18px 20px;}
-.rd-title{font-size:1.7rem;}
-.rd-circuit{flex-direction:column;gap:16px;}
-.rd-station{padding:0 0 0 28px;}
-.rd-pad{position:absolute;left:0;top:3px;}
-.rd-name{margin-top:0;}
-.rd-station:not(:last-child)::after{top:17px;left:6px;right:auto;bottom:-19px;width:2px;height:auto;}
-.rd-score{grid-template-columns:1fr 48px;row-gap:6px;}
-.rd-score .rd-bar{grid-column:1 / -1;grid-row:2;}
+[data-testid="stForm"]{background:var(--vm-surface);border:1px solid var(--vm-border);border-radius:12px;box-shadow:var(--vm-shadow);padding:20px 22px 18px;}
+[data-testid="stExpander"] details{background:var(--vm-surface);border:1px solid var(--vm-border);border-radius:10px;}
+button[data-baseweb="tab"] p{font-weight:500;}
+.vm-appbar{display:flex;align-items:center;justify-content:space-between;gap:16px;background:var(--vm-brand);border-radius:12px;padding:11px 18px;margin:0 0 28px;}
+.vm-brand{display:flex;align-items:center;gap:12px;}
+.vm-mark{display:flex;width:30px;height:30px;}
+.vm-name{font-family:var(--vm-cond);font-weight:600;font-size:1.12rem;color:#FFFFFF;}
+.vm-env{font-size:.72rem;font-weight:500;padding:2px 9px;border-radius:999px;background:rgba(255,255,255,.12);color:#DCE8E0;}
+.vm-meta{font-size:.82rem;color:#BFD2C6;}
+.vm-title{font-family:var(--vm-cond);font-weight:600;font-size:1.95rem;line-height:1.15;color:var(--vm-ink);margin:0 0 6px;max-width:900px;}
+.vm-sub{color:var(--vm-muted);font-size:.98rem;line-height:1.5;margin:0 0 22px;max-width:72ch;}
+.vm-card{background:var(--vm-surface);border:1px solid var(--vm-border);border-radius:12px;box-shadow:var(--vm-shadow);padding:18px 20px;margin:0 0 16px;}
+.vm-card.pass{border-top:3px solid var(--vm-pass);}
+.vm-card.flag{border-top:3px solid var(--vm-flag);}
+.vm-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:0 0 18px;}
+.vm-card-title{font-family:var(--vm-cond);font-weight:600;font-size:1.02rem;color:var(--vm-ink);}
+.vm-activity{display:block;font-size:.84rem;color:var(--vm-muted);margin-top:2px;}
+.vm-pill{display:inline-flex;align-items:center;gap:6px;font-size:.76rem;font-weight:500;padding:3px 10px;border-radius:999px;background:#EEF1EE;color:var(--vm-muted);white-space:nowrap;}
+.vm-pill .dot{width:7px;height:7px;border-radius:50%;background:currentColor;}
+.vm-pill.live{background:#FBF5E2;color:#6F560C;}
+.vm-pill.live .dot{background:var(--vm-gold);animation:vm-blink 1.2s ease-in-out infinite;}
+.vm-pill.pass{background:var(--vm-pass-tint);color:var(--vm-pass);}
+.vm-pill.flag{background:var(--vm-flag-tint);color:var(--vm-flag);}
+.vm-steps{display:flex;align-items:flex-start;}
+.vm-step{position:relative;flex:1 1 0;min-width:0;padding-right:12px;}
+.vm-step:not(:last-child)::after{content:"";position:absolute;top:11px;left:24px;right:0;height:2px;background:var(--vm-border);}
+.vm-step.done:not(:last-child)::after{background:var(--vm-brand);}
+.vm-node{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;box-sizing:border-box;border:2px solid #C5CEC8;background:var(--vm-surface);color:var(--vm-muted);font-size:.72rem;font-weight:600;}
+.vm-step.done .vm-node{background:var(--vm-brand);border-color:var(--vm-brand);color:#FFFFFF;}
+.vm-step.running .vm-node{border-color:var(--vm-gold);color:#6F560C;animation:vm-pulse 1.4s ease-out infinite;}
+.vm-step.flag .vm-node,.vm-step.failed .vm-node{background:var(--vm-flag);border-color:var(--vm-flag);color:#FFFFFF;}
+@keyframes vm-pulse{0%{box-shadow:0 0 0 0 rgba(201,162,39,.55);}100%{box-shadow:0 0 0 9px rgba(201,162,39,0);}}
+@keyframes vm-blink{0%,100%{opacity:1;}50%{opacity:.35;}}
+.vm-step-name{display:block;margin-top:10px;font-family:var(--vm-cond);font-weight:600;font-size:.95rem;color:var(--vm-ink);}
+.vm-step.idle .vm-step-name{color:var(--vm-muted);}
+.vm-step-note{display:block;margin-top:2px;font-size:.8rem;line-height:1.35;color:var(--vm-muted);}
+.vm-step-time{display:block;margin-top:4px;font-size:.75rem;font-weight:500;color:var(--vm-brand);}
+.vm-step.running .vm-step-time{color:#6F560C;}
+.vm-chips{margin-top:6px;}
+.vm-chip{display:inline-block;margin:0 4px 4px 0;padding:1px 8px;border-radius:999px;border:1px solid var(--vm-border);font-size:.72rem;line-height:1.6;color:var(--vm-muted);white-space:nowrap;background:var(--vm-surface);}
+.vm-chip.on{border-color:transparent;background:var(--vm-tint);color:var(--vm-brand);}
+.vm-verdict-title{font-family:var(--vm-cond);font-weight:600;font-size:1.35rem;line-height:1.2;color:var(--vm-ink);margin:12px 0 4px;}
+.vm-verdict-text{font-size:.9rem;color:var(--vm-muted);line-height:1.5;margin:0;}
+.vm-verdict-text ul{margin:8px 0 0 18px;padding:0;}
+.vm-stats{display:grid;grid-template-columns:1fr 1fr;gap:16px 18px;}
+.vm-stat b{display:block;font-family:var(--vm-cond);font-weight:600;font-size:1.3rem;line-height:1.15;color:var(--vm-ink);}
+.vm-stat span{font-size:.78rem;color:var(--vm-muted);}
+.vm-scores{display:grid;gap:12px;}
+.vm-score-row{display:flex;justify-content:space-between;gap:8px;font-size:.84rem;color:var(--vm-ink);margin-bottom:5px;}
+.vm-score-row b{font-weight:600;}
+.vm-bar{position:relative;height:6px;border-radius:3px;background:#E9EDEA;}
+.vm-bar i{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:var(--vm-pass);}
+.vm-bar i.low{background:var(--vm-flag);}
+.vm-bar::after{content:"";position:absolute;left:70%;top:-3px;bottom:-3px;width:2px;background:var(--vm-ink);opacity:.45;}
+.vm-note{font-size:.76rem;color:var(--vm-muted);margin:12px 0 0;}
+@media (max-width:760px){
+.vm-appbar{flex-wrap:wrap;}
+.vm-title{font-size:1.55rem;}
+.vm-steps{flex-direction:column;gap:14px;}
+.vm-step{padding:0 0 0 36px;min-height:24px;}
+.vm-node{position:absolute;left:0;top:0;}
+.vm-step-name{margin-top:2px;}
+.vm-step:not(:last-child)::after{top:26px;left:11px;right:auto;bottom:-16px;width:2px;height:auto;}
 }
-@media (prefers-reduced-motion:reduce){.rd-station.running .rd-pad{animation:none;}}
+@media (prefers-reduced-motion:reduce){.vm-step.running .vm-node,.vm-pill.live .dot{animation:none;}}
 </style>
 """
 # Remove indentation and blank lines so the whole block reaches the page as raw CSS
-_W8_CSS = "\n".join(line.strip() for line in _W8_CSS.splitlines() if line.strip())
-st.markdown(_W8_CSS, unsafe_allow_html=True)
+_VM_CSS = "\n".join(line.strip() for line in _VM_CSS.splitlines() if line.strip())
+st.markdown(_VM_CSS, unsafe_allow_html=True)
 
-# The six stations in pipeline order: (graph node name, label, what it does before it runs)
+# Logo mark: three agents wired together, the supervisor on top in gold
+_LOGO_SVG = (
+    '<svg viewBox="0 0 30 30" width="30" height="30" aria-hidden="true">'
+    '<rect x="0.5" y="0.5" width="29" height="29" rx="7" fill="rgba(255,255,255,.08)" stroke="rgba(255,255,255,.22)"/>'
+    '<path d="M8 20 L15 10 L22 20" fill="none" stroke="#C9A227" stroke-width="1.6"/>'
+    '<circle cx="8" cy="20" r="2.6" fill="#FFFFFF"/><circle cx="15" cy="10" r="2.6" fill="#C9A227"/>'
+    '<circle cx="22" cy="20" r="2.6" fill="#FFFFFF"/></svg>'
+)
+# Check mark drawn inside a finished step
+_CHECK_SVG = ('<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 6.2l2.3 2.3 4.7-4.9" '
+              'fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>')
+
+# The six steps in pipeline order: (graph node name, label, what it does before it runs)
 STATIONS = [
     ("supervise", "Supervisor", "Plans the research"),
     ("specialists", "Specialists", "Search papers and reports"),
@@ -1403,7 +1473,7 @@ STATIONS = [
 ]
 ROLE_ORDER = ["Competitor", "Market", "Tech/Regulatory"]  # Display order for the specialists
 
-# What the run line says while each node is working
+# What the activity line says while each node is working
 RUNNING_TEXT = {
     "supervise": "The supervisor is planning the research",
     "specialists": "The specialists are searching papers and reports",
@@ -1413,6 +1483,13 @@ RUNNING_TEXT = {
     "synthesis": "Writing the report",
     "reviewer": "The reviewer is checking the report",
 }
+
+# One-click example questions for demos
+EXAMPLE_QUESTIONS = [
+    ("NVIDIA vs AMD in AI chips", "How is NVIDIA positioning itself against AMD in the AI chip market?"),
+    ("US grid battery storage", "What is driving demand for grid-scale battery storage in the United States?"),
+    ("EU AI Act and enterprises", "How are EU AI Act requirements affecting enterprise AI adoption?"),
+]
 
 
 def _as_dict(value) -> dict:
@@ -1523,36 +1600,39 @@ def _next_node(finished: str, output: dict) -> str | None:
     return order.get(finished)
 
 
-def _render_hero(progress: dict) -> str:
-    """Build the header and the live circuit as one HTML string (no newlines, so markdown leaves it alone)."""
+def _render_pipeline(progress: dict) -> str:
+    """The pipeline card: status pill, live activity line, and one step per agent (single-line HTML)."""
     done, running, failed = progress["done"], progress["running"], progress["failed"]
     result = _as_dict(progress["result"])
+    durations = progress.get("durations", {})
     review = _as_dict(result.get("review"))
     gap_check = _as_dict(result.get("gap_check"))
     first_pass = {a.get("objective") for a in _as_list(result.get("assignments")) if isinstance(a, dict)}
     roles_done = {s.get("agent") for s in _as_list(result.get("specialist_results"))
                   if isinstance(s, dict) and s.get("objective") in first_pass}
 
-    stations_html = []
-    for key, label, idle_note in STATIONS:
-        classes = ["rd-station"]
-        note = idle_note
-        chips = []
-
+    steps_html = []
+    for number, (key, label, idle_note) in enumerate(STATIONS, start=1):
+        is_running = key == running or (key == "gap_check" and running == "additional")
+        is_failed = key == failed or (key == "gap_check" and failed == "additional")
+        classes = ["vm-step"]
         if key in done:
             classes.append("done")
-        if key == running or (key == "gap_check" and running == "additional"):
+        if is_running:
             classes.append("running")
-        if key == failed or (key == "gap_check" and failed == "additional"):
+        if is_failed:
             classes.append("failed")
+        if key not in done and not is_running and not is_failed:
+            classes.append("idle")
+
+        note, chips, time_text = idle_note, [], ""
 
         if key == "supervise" and key in done:
             note = f"{len(_as_list(result.get('assignments')))} assignments made"
         elif key == "specialists":
             if key in done:
                 note = f"{len(roles_done)} of 3 reported back"
-            for role in ROLE_ORDER:
-                chips.append((role, role in roles_done))
+            chips = [(role, role in roles_done) for role in ROLE_ORDER]
         elif key == "evidence_store" and key in done:
             note = f"{len(_as_list(result.get('evidence_records')))} records"
         elif key == "gap_check" and key in done:
@@ -1560,10 +1640,11 @@ def _render_hero(progress: dict) -> str:
             if running == "additional":
                 chips.append(("Extra pass running", True))
             elif "additional" in done:
+                extra_time = f" in {_fmt_duration(durations['additional'])}" if "additional" in durations else ""
                 if result.get("additional_research_performed"):
-                    chips.append((f"Extra pass +{result.get('new_evidence_count', 0)}", True))
+                    chips.append((f"Extra pass +{result.get('new_evidence_count', 0)}{extra_time}", True))
                 else:
-                    chips.append(("Extra pass added nothing", True))
+                    chips.append((f"Extra pass added nothing{extra_time}", True))
         elif key == "synthesis" and key in done:
             note = "Draft written"
         elif key == "reviewer" and key in done:
@@ -1574,160 +1655,267 @@ def _render_hero(progress: dict) -> str:
             if result.get("revision_performed"):
                 chips.append(("Revised once", True))
 
+        # Time spent: finished steps show their duration, the running step counts up live
+        if key in durations:
+            time_text = _fmt_duration(durations[key])
+        elif is_running and running != "additional":
+            time_text = f"{_fmt_duration(progress.get('step_elapsed', 0))} so far"
+
+        # Node content: a check when done, ! when it failed or didn't pass, otherwise the step number
+        if is_failed or "flag" in classes:
+            node = "!"
+        elif key in done:
+            node = _CHECK_SVG
+        else:
+            node = str(number)
+
         chips_html = ""
         if chips:
-            chips_html = '<div class="rd-chips">' + "".join(
-                f'<span class="rd-chip{" on" if on else ""}">{_html.escape(text)}</span>' for text, on in chips
+            chips_html = '<div class="vm-chips">' + "".join(
+                f'<span class="vm-chip{" on" if on else ""}">{_html.escape(text)}</span>' for text, on in chips
             ) + "</div>"
+        time_html = f'<span class="vm-step-time">{_html.escape(time_text)}</span>' if time_text else ""
 
-        stations_html.append(
-            f'<div class="{" ".join(classes)}"><span class="rd-pad"></span>'
-            f'<span class="rd-name">{_html.escape(label)}</span>'
-            f'<span class="rd-note">{_html.escape(note)}</span>{chips_html}</div>'
+        steps_html.append(
+            f'<div class="{" ".join(classes)}"><span class="vm-node">{node}</span>'
+            f'<span class="vm-step-name">{_html.escape(label)}</span>'
+            f'<span class="vm-step-note">{_html.escape(note)}</span>{time_html}{chips_html}</div>'
         )
 
+    # Status pill in the card header
+    state = progress.get("state", "idle")
+    elapsed = _fmt_duration(progress.get("elapsed", 0))
+    pill = {
+        "idle": '<span class="vm-pill"><span class="dot"></span>Ready</span>',
+        "running": f'<span class="vm-pill live"><span class="dot"></span>Running, {elapsed}</span>',
+        "done": f'<span class="vm-pill pass"><span class="dot"></span>Completed in {elapsed}</span>',
+        "failed": f'<span class="vm-pill flag"><span class="dot"></span>Stopped after {elapsed}</span>',
+    }[state]
+
     return (
-        '<div class="rd-hero">'
-        '<div class="rd-title" role="heading" aria-level="1">Verified Market Research</div>'
-        '<p class="rd-lede">Ask a business question. A supervisor splits it across three specialist agents, '
-        'they build an evidence base from research papers and formal reports, and a reviewer checks the '
-        'report before it is approved.</p>'
-        f'<div class="rd-circuit">{"".join(stations_html)}</div>'
-        f'<div class="rd-runline" aria-live="polite">{_html.escape(progress["line"])}</div>'
-        '</div>'
+        '<div class="vm-card"><div class="vm-card-head"><div>'
+        '<span class="vm-card-title">Agent pipeline</span>'
+        f'<span class="vm-activity" aria-live="polite">{_html.escape(progress["line"])}</span>'
+        f'</div>{pill}</div>'
+        f'<div class="vm-steps">{"".join(steps_html)}</div></div>'
     )
 
 
-def _final_progress(result: dict, seconds: float) -> dict:
-    """Circuit state for a finished run, so the hero still shows it after a rerun (e.g. clicking Download)."""
+def _idle_progress() -> dict:
+    """Pipeline state before any run."""
+    return {"done": set(), "running": None, "failed": None, "result": {}, "state": "idle",
+            "elapsed": 0, "durations": {}, "line": "Each agent lights up as it finishes its step."}
+
+
+def _final_progress(result: dict, seconds: float, durations: dict) -> dict:
+    """Pipeline state for a finished run, so it still shows after a rerun (e.g. clicking Download)."""
     result = _as_dict(result)
     done = {key for key, _label, _note in STATIONS}
     if _as_dict(result.get("gap_check")).get("needs_research") is True:
         done.add("additional")
-    return {"done": done, "running": None, "failed": None, "result": result,
-            "line": f"Finished in {_fmt_duration(seconds)}."}
+    return {"done": done, "running": None, "failed": None, "result": result, "state": "done",
+            "elapsed": seconds, "durations": durations or {}, "line": "All steps finished."}
 
 
-# ---------------- Hero (placeholder, so it can update live during a run) ----------------
-hero = st.empty()
-if "w8_t2_result" in st.session_state:
-    hero.markdown(
-        _render_hero(_final_progress(st.session_state["w8_t2_result"], st.session_state.get("w8_t2_seconds", 0))),
-        unsafe_allow_html=True,
-    )
-else:
-    hero.markdown(
-        _render_hero({"done": set(), "running": None, "failed": None, "result": {},
-                      "line": "Enter a question below to start a run."}),
-        unsafe_allow_html=True,
-    )
+def _use_example(text: str) -> None:
+    """Button callback: put an example question into the input box."""
+    st.session_state["vm_question"] = text
+
+
+def _supported_kwargs(func, **kwargs) -> dict:
+    """Keep only the options this Streamlit version's function accepts (avoids errors on older versions)."""
+    try:
+        params = inspect.signature(func).parameters
+    except (TypeError, ValueError):
+        return {}
+    return {k: v for k, v in kwargs.items() if k in params}
+
+
+def _stretch_kwargs(func) -> dict:
+    """Full-width option for this Streamlit version: width="stretch" on new versions, else use_container_width."""
+    try:
+        return {"width": "stretch"} if "width" in inspect.signature(func).parameters else {"use_container_width": True}
+    except (TypeError, ValueError):
+        return {}
+
+
+# ---------------- App bar ----------------
+st.markdown(
+    '<div class="vm-appbar"><div class="vm-brand">'
+    f'<span class="vm-mark">{_LOGO_SVG}</span>'
+    '<span class="vm-name">Verified Market Research</span><span class="vm-env">Prototype</span></div>'
+    '<div class="vm-meta">Team 2 multi-agent research</div></div>',
+    unsafe_allow_html=True,
+)
+
+# ---------------- Page header (filled in after the form, once we know if a run is starting) ----------------
+page_header = st.empty()
+
+# ---------------- Example questions (buttons can't live inside a form) ----------------
+if "vm_question" not in st.session_state:
+    st.session_state["vm_question"] = EXAMPLE_QUESTIONS[0][1]  # Default question
+example_cols = st.columns(len(EXAMPLE_QUESTIONS))
+for col, (label, text) in zip(example_cols, EXAMPLE_QUESTIONS):
+    col.button(label, key=f"vm_example_{label}", on_click=_use_example, args=(text,))
 
 # ---------------- Question form ----------------
 # A form lets the user press Enter or click the button to submit
 with st.form("research_form"):
     question = st.text_input(
         "Research question",
-        value="How is NVIDIA positioning itself against AMD in the AI chip market?",
+        key="vm_question",
+        placeholder="For example: How is NVIDIA positioning itself against AMD in the AI chip market?",
     )
+    st.caption("Sources are limited to peer-reviewed research, government and regulatory documents, "
+               "and formal analyst reports. A typical run takes a few minutes.")
     submitted = st.form_submit_button("Run research", type="primary")
 
+starting_run = submitted and bool(question.strip())  # A new run is about to start
+
+# Page title: the question being answered, or a prompt to ask one
+if starting_run:
+    header_title, header_sub = question.strip(), "Research in progress. Results appear below when the review is done."
+elif "w8_t2_result" in st.session_state:
+    finished_time = st.session_state.get("w8_t2_finished_at")
+    when = (f"Finished {finished_time:%b} {finished_time.day} at {finished_time.strftime('%I:%M %p').lstrip('0')}. "
+            if isinstance(finished_time, datetime) else "")
+    header_title = st.session_state.get("w8_t2_question") or "Research results"
+    header_sub = when + "Every claim cites a research paper or formal report."
+else:
+    header_title = "Ask a research question"
+    header_sub = ("A supervisor assigns your question to three specialist agents, who build an evidence base "
+                  "from research papers and formal reports. A reviewer checks the report before it is approved.")
+page_header.markdown(
+    f'<div class="vm-title" role="heading" aria-level="1">{_html.escape(header_title)}</div>'
+    f'<p class="vm-sub">{_html.escape(header_sub)}</p>',
+    unsafe_allow_html=True,
+)
+
+# ---------------- Pipeline card (placeholder, so it can update live during a run) ----------------
+pipeline = st.empty()
+if "w8_t2_result" in st.session_state and not starting_run:
+    pipeline.markdown(
+        _render_pipeline(_final_progress(st.session_state["w8_t2_result"],
+                                         st.session_state.get("w8_t2_seconds", 0),
+                                         st.session_state.get("w8_t2_durations", {}))),
+        unsafe_allow_html=True,
+    )
+else:
+    pipeline.markdown(_render_pipeline(_idle_progress()), unsafe_allow_html=True)
+
 # ---------------- Run the pipeline ----------------
-if submitted:
-    if not question.strip():
-        st.warning("Enter a research question first.")
-    else:
-        # Starting state: every field the graph tracks, with empty defaults
-        initial_state = {
-            "question": question.strip(),
-            "assignments": [],
-            "specialist_results": [],
-            "evidence_records": [],
-            "report": {},
-            "report_markdown": "",
-            "report_id": 0,
-            "review": {},
-            "initial_review": {},
-            "final_report_markdown": "",
-            "revision_performed": False,
-            "gap_check": {},
-            "additional_research_performed": False,
-            "new_evidence_count": 0,
-        }
+if submitted and not question.strip():
+    st.warning("Enter a research question first.")
 
-        start = time.perf_counter()  # Start time, for the run-time readout
-        progress = {"done": set(), "running": "supervise", "failed": None,
-                    "result": dict(initial_state), "line": RUNNING_TEXT["supervise"]}
-        st.session_state.pop("w8_t2_result", None)  # Clear the previous run so it can't be confused with this one
-        hero.markdown(_render_hero(progress), unsafe_allow_html=True)
+if starting_run:
+    # Starting state: every field the graph tracks, with empty defaults
+    initial_state = {
+        "question": question.strip(),
+        "assignments": [],
+        "specialist_results": [],
+        "evidence_records": [],
+        "report": {},
+        "report_markdown": "",
+        "report_id": 0,
+        "review": {},
+        "initial_review": {},
+        "final_report_markdown": "",
+        "revision_performed": False,
+        "gap_check": {},
+        "additional_research_performed": False,
+        "new_evidence_count": 0,
+    }
 
-        SPECIALIST_ERRORS.clear()  # Start this run with no recorded specialist failures
+    start = time.perf_counter()  # Start of the whole run
+    last_mark = start            # When the current step started, for per-step timings
+    progress = {"done": set(), "running": "supervise", "failed": None, "result": dict(initial_state),
+                "state": "running", "elapsed": 0, "step_elapsed": 0, "durations": {},
+                "line": RUNNING_TEXT["supervise"]}
+    st.session_state.pop("w8_t2_result", None)  # Clear the previous run so it can't be confused with this one
+    pipeline.markdown(_render_pipeline(progress), unsafe_allow_html=True)
+    SPECIALIST_ERRORS.clear()  # Start this run with no recorded specialist failures
 
-        # The graph runs in a background thread so this (main) thread is free to redraw
-        # the timer every half second; finished steps arrive through a thread-safe queue.
-        updates = queue.Queue()
-        outcome = {}  # Holds the exception if the graph fails
+    # The graph runs in a background thread so this (main) thread is free to redraw
+    # the timer every half second; finished steps arrive through a thread-safe queue.
+    updates = queue.Queue()
+    outcome = {}  # Holds the exception if the graph fails
 
-        def _run_graph():
-            try:
-                for update in week7_graph.stream(initial_state, stream_mode="updates"):
-                    updates.put(update)
-            except Exception as exc:
-                outcome["error"] = exc
-
-        worker = threading.Thread(target=_run_graph, daemon=True)
-        worker.start()
-
+    def _run_graph():
         try:
-            while True:
-                # Check BEFORE draining, so the final steps queued just before the thread ended aren't missed
-                finished = not worker.is_alive()
-
-                # Apply every step that finished since the last tick
-                while True:
-                    try:
-                        update = updates.get_nowait()
-                    except queue.Empty:
-                        break
-                    for node_name, node_output in update.items():
-                        node_output = node_output or {}
-                        progress["result"].update(node_output)          # Merge this step's output into the final state
-                        progress["done"].add(node_name)                 # Light this station's pad
-                        progress["running"] = _next_node(node_name, progress["result"])
-
-                # Redraw the circuit with the live timer
-                elapsed = _fmt_duration(time.perf_counter() - start)
-                progress["line"] = (f"{RUNNING_TEXT[progress['running']]} ({elapsed})"
-                                    if progress["running"] else f"Wrapping up ({elapsed})")
-                hero.markdown(_render_hero(progress), unsafe_allow_html=True)
-
-                if finished:
-                    break
-                time.sleep(0.5)  # Tick twice a second so the seconds count up smoothly
-
-            worker.join()
-            if "error" in outcome:
-                raise outcome["error"]  # Hand the graph's failure to the error handling below
-
-            seconds = round(time.perf_counter() - start, 1)
-            # Keep the result across reruns (clicking Download reruns the script)
-            st.session_state["w8_t2_result"] = progress["result"]
-            st.session_state["w8_t2_seconds"] = seconds
-            hero.markdown(_render_hero(_final_progress(progress["result"], seconds)), unsafe_allow_html=True)
+            for update in week7_graph.stream(initial_state, stream_mode="updates"):
+                updates.put((update, time.perf_counter()))  # Each finished step, with when it finished
         except Exception as exc:
-            failed_label = dict((k, label) for k, label, _n in STATIONS).get(progress["running"], "Extra research pass")
-            progress["failed"], progress["running"] = progress["running"], None
-            progress["line"] = f"Stopped at {failed_label} after {_fmt_duration(time.perf_counter() - start)}."
-            hero.markdown(_render_hero(progress), unsafe_allow_html=True)
-            st.error(f"The run stopped at {failed_label}, so no report was produced. Details: {exc}")
+            outcome["error"] = exc
 
-        for message in SPECIALIST_ERRORS:  # Specialist failures recorded during the run
-            st.warning(message)
+    worker = threading.Thread(target=_run_graph, daemon=True)
+    worker.start()
+
+    try:
+        while True:
+            # Check BEFORE draining, so the final steps queued just before the thread ended aren't missed
+            finished = not worker.is_alive()
+
+            # Apply every step that finished since the last tick
+            while True:
+                try:
+                    update, finished_at = updates.get_nowait()
+                except queue.Empty:
+                    break
+                for node_name, node_output in update.items():
+                    node_output = node_output or {}
+                    progress["result"].update(node_output)               # Merge this step's output
+                    progress["done"].add(node_name)                      # Mark the step finished
+                    progress["durations"][node_name] = finished_at - last_mark  # How long it took
+                    last_mark = finished_at
+                    progress["running"] = _next_node(node_name, progress["result"])
+
+            # Redraw the pipeline with the live timers
+            now = time.perf_counter()
+            progress["elapsed"] = now - start
+            progress["step_elapsed"] = now - last_mark
+            progress["line"] = RUNNING_TEXT[progress["running"]] if progress["running"] else "Wrapping up"
+            pipeline.markdown(_render_pipeline(progress), unsafe_allow_html=True)
+
+            if finished:
+                break
+            time.sleep(0.5)  # Tick twice a second so the seconds count up smoothly
+
+        worker.join()
+        if "error" in outcome:
+            raise outcome["error"]  # Hand the graph's failure to the error handling below
+
+        seconds = round(time.perf_counter() - start, 1)
+        # Keep the result across reruns (clicking Download or a tab reruns the script)
+        st.session_state["w8_t2_result"] = progress["result"]
+        st.session_state["w8_t2_seconds"] = seconds
+        st.session_state["w8_t2_durations"] = dict(progress["durations"])
+        st.session_state["w8_t2_question"] = question.strip()
+        st.session_state["w8_t2_finished_at"] = datetime.now()
+        pipeline.markdown(_render_pipeline(_final_progress(progress["result"], seconds, progress["durations"])),
+                          unsafe_allow_html=True)
+        # Refresh the page header to the "finished" version
+        page_header.markdown(
+            f'<div class="vm-title" role="heading" aria-level="1">{_html.escape(question.strip())}</div>'
+            '<p class="vm-sub">Finished just now. Every claim cites a research paper or formal report.</p>',
+            unsafe_allow_html=True,
+        )
+    except Exception as exc:
+        failed_label = dict((k, label) for k, label, _n in STATIONS).get(progress["running"], "Extra research pass")
+        progress["failed"], progress["running"] = progress["running"], None
+        progress["state"] = "failed"
+        progress["elapsed"] = time.perf_counter() - start
+        progress["line"] = f"Stopped at {failed_label}. No report was produced."
+        pipeline.markdown(_render_pipeline(progress), unsafe_allow_html=True)
+        st.error(f"The run stopped at {failed_label}, so no report was produced. Details: {exc}")
+
+    for message in SPECIALIST_ERRORS:  # Specialist failures recorded during the run
+        st.warning(message)
 
 # ---------------- Results ----------------
 if "w8_t2_result" in st.session_state:
     result = _as_dict(st.session_state["w8_t2_result"])
-    problems = _w8_t2_problems(result)                      # Reasons the gate failed, if any
-    approved = _w8_t2_ready(result)                         # The Week 8 quality gate
+    problems = _w8_t2_problems(result)                          # Reasons the gate failed, if any
+    approved = _w8_t2_ready(result)                             # The Week 8 quality gate
     review = _as_dict(result.get("review"))                     # Final reviewer verdict
     gap_check = _as_dict(result.get("gap_check"))               # Gap/conflict check result
     evidence = _as_list(result.get("evidence_records"))         # All evidence (both passes)
@@ -1736,40 +1924,27 @@ if "w8_t2_result" in st.session_state:
     report_md = report_md if isinstance(report_md, str) else ""
     distinct_sources = len({str(e.get("url")) for e in evidence if isinstance(e, dict) and e.get("url")})
 
-    # Verdict: the outcome first, then the numbers behind it
-    if approved:
-        verdict_title = "Approved"
-        verdict_text = ("The reviewer passed this report and it cleared every approval check. "
-                        "It is prototype output and has not been independently fact-checked.")
-    else:
-        verdict_title = "Not approved"
-        verdict_text = ("The report did not clear the approval checks, so no download is offered. "
-                        "The draft is kept in the Report tab for debugging.<ul>"
-                        + "".join(f"<li>{_html.escape(p)}</li>" for p in problems) + "</ul>")
-    readouts = [
-        (_fmt_duration(st.session_state.get("w8_t2_seconds", 0)), "Run time"),
-        (str(len(evidence)), "Evidence records"),
-        (str(distinct_sources), "Distinct sources"),
-        (str(len(specialists)), "Specialist outputs"),
-    ]
-    st.markdown(
-        f'<div class="rd-verdict{"" if approved else " flag"}">'
-        f'<div class="rd-verdict-title" role="heading" aria-level="2">{verdict_title}</div>'
-        f'<div class="rd-verdict-text">{verdict_text}</div>'
-        '<div class="rd-readouts">'
-        + "".join(f'<div class="rd-readout"><b>{_html.escape(v)}</b><span>{_html.escape(l)}</span></div>'
-                  for v, l in readouts)
-        + "</div></div>",
-        unsafe_allow_html=True,
-    )
+    col_main, col_rail = st.columns([2.2, 1], gap="large")
 
-    tab_report, tab_review, tab_specialists, tab_gaps, tab_evidence = st.tabs(
-        ["Report", "Reviewer", "Specialists", "Gap check", "Evidence"]
-    )
+    # ---- Right rail: verdict, download, run summary, scores ----
+    with col_rail:
+        if approved:
+            pill = '<span class="vm-pill pass"><span class="dot"></span>Approved</span>'
+            title = "Ready to share"
+            text = ("The reviewer passed this report and it cleared every approval check. "
+                    "It is prototype output and has not been independently fact-checked.")
+        else:
+            pill = '<span class="vm-pill flag"><span class="dot"></span>Not approved</span>'
+            title = "Held for review"
+            text = ("The report did not clear the approval checks, so no download is offered.<ul>"
+                    + "".join(f"<li>{_html.escape(p)}</li>" for p in problems) + "</ul>")
+        st.markdown(
+            f'<div class="vm-card {"pass" if approved else "flag"}">{pill}'
+            f'<div class="vm-verdict-title" role="heading" aria-level="2">{title}</div>'
+            f'<div class="vm-verdict-text">{text}</div></div>',
+            unsafe_allow_html=True,
+        )
 
-    # Report: shown openly with a download ONLY when approved
-    with tab_report:
-        sections = _as_dict(result.get("report"))  # The nine sections, as reviewed (and revised)
         if approved:
             st.download_button(
                 "Download report (.md)",
@@ -1777,117 +1952,154 @@ if "w8_t2_result" in st.session_state:
                 file_name="elp_team2_report.md",
                 mime="text/markdown",
                 key="w8_t2_download",
+                **_supported_kwargs(st.download_button, type="primary"),
+                **_stretch_kwargs(st.download_button),
             )
-            _show_report(sections, evidence, report_md, "w8_report")
-        else:
-            # Hidden by default; shown only on request, for debugging
-            st.caption("This draft did not pass the approval checks and is shown only for debugging.")
-            if st.toggle("Show the unapproved draft", key="w8_show_draft"):
-                _show_report(sections, evidence, report_md, "w8_draft")
 
-    # Reviewer: six scores drawn against the pass bar of 7, then issues and gaps
-    with tab_review:
-        if result.get("revision_performed"):
-            st.caption("The first draft did not pass, so one controlled revision was made and reviewed again.")
+        stats = [
+            (_fmt_duration(st.session_state.get("w8_t2_seconds", 0)), "Run time"),
+            (str(len(evidence)), "Evidence records"),
+            (str(distinct_sources), "Source documents"),
+            (str(len(specialists)), "Specialist outputs"),
+        ]
+        st.markdown(
+            '<div class="vm-card"><div class="vm-card-head"><span class="vm-card-title">Run summary</span></div>'
+            '<div class="vm-stats">'
+            + "".join(f'<div class="vm-stat"><b>{_html.escape(v)}</b><span>{_html.escape(l)}</span></div>'
+                      for v, l in stats)
+            + "</div></div>",
+            unsafe_allow_html=True,
+        )
 
-        bars = []
+        # Reviewer scores, each against the pass mark of 7
+        rows = []
         for name, score in _as_dict(review.get("scores")).items():
             try:
                 score = max(0, min(10, int(score)))
             except (TypeError, ValueError):
                 score = 0
-            bars.append(
-                f'<div class="rd-score"><span>{_html.escape(str(name).replace("_", " ").capitalize())}</span>'
-                f'<div class="rd-bar" role="img" aria-label="{score} out of 10">'
-                f'<i class="{"" if score >= 7 else "low"}" style="width:{score * 10}%"></i></div>'
-                f'<span class="rd-score-value">{score}/10</span></div>'
+            rows.append(
+                f'<div><div class="vm-score-row"><span>{_html.escape(str(name).replace("_", " ").capitalize())}</span>'
+                f'<b>{score}/10</b></div><div class="vm-bar" role="img" aria-label="{score} out of 10">'
+                f'<i class="{"" if score >= 7 else "low"}" style="width:{score * 10}%"></i></div></div>'
             )
-        if bars:
-            st.markdown('<div class="rd-scores">' + "".join(bars) + "</div>"
-                        '<p class="rd-scale-note">The line on each bar marks the pass mark of 7.</p>',
-                        unsafe_allow_html=True)
-
-        st.markdown("**Issues**")
-        issues = _as_list(review.get("issues"))
-        if not issues:
-            st.caption("No issues reported.")
-        for issue in issues:
-            with _box():  # One box per issue so they read separately
-                if isinstance(issue, dict):  # Normal reviewer issues are dicts
-                    category = str(issue.get("category") or "general").replace("_", " ").capitalize()
-                    section = str(issue.get("section") or "overall")
-                    st.markdown(f"**{category}** in {section}")
-                    st.markdown(_md(issue.get("explanation"), evidence))
-                    if issue.get("suggested_fix"):
-                        st.caption(f"Suggested fix: {issue.get('suggested_fix')}")
-                else:  # Failed reviews return plain-text issues
-                    st.markdown(_md(issue, evidence))
-
-        st.markdown("**Research gaps**")
-        for gap in _as_list(review.get("research_gaps")) or ["None reported."]:
-            st.markdown(f"- {gap}")
-
-        if result.get("revision_performed"):
-            with st.expander("Initial review, before the revision"):
-                st.json(_as_dict(result.get("initial_review")))
-
-    # Specialists: each role's objective and brief, first pass before the extra pass
-    with tab_specialists:
-        first_pass_objectives = {a.get("objective") for a in _as_list(result.get("assignments")) if isinstance(a, dict)}
-
-        def _sort_key(s):
-            extra = s.get("objective") not in first_pass_objectives  # Extra-pass outputs go last
-            role = ROLE_ORDER.index(s["agent"]) if s.get("agent") in ROLE_ORDER else len(ROLE_ORDER)
-            return (extra, role)
-
-        for s in sorted((s for s in specialists if isinstance(s, dict)), key=_sort_key):
-            label = s.get("agent", "Specialist")
-            if s.get("objective") not in first_pass_objectives:
-                label += " (extra research pass)"
-            with st.expander(label):
-                st.markdown(f"**Objective:** {s.get('objective', '')}")
-                st.markdown(str(s.get("research") or "").replace("$", "\\$"))
-                st.caption(f"{len(_as_list(s.get('sources')))} approved sources")
-
-    # Gap check: whether one extra research pass ran, and why
-    with tab_gaps:
-        if result.get("additional_research_performed"):
-            st.info(
-                f"One extra research pass ran on: {gap_check.get('targeted_question', '')}  \n"
-                f"It added {result.get('new_evidence_count', 0)} new evidence records."
+        if rows:
+            st.markdown(
+                '<div class="vm-card"><div class="vm-card-head"><span class="vm-card-title">Reviewer scores</span></div>'
+                f'<div class="vm-scores">{"".join(rows)}</div>'
+                '<p class="vm-note">The line on each bar marks the pass mark of 7.</p></div>',
+                unsafe_allow_html=True,
             )
-        else:
-            st.write("No extra research pass was needed.")
 
-        st.markdown(f"**Reason:** {gap_check.get('reason') or 'No reason given.'}")
+    # ---- Main column: tabs ----
+    with col_main:
+        tab_report, tab_evidence, tab_specialists, tab_gaps, tab_review = st.tabs(
+            ["Report", "Evidence", "Specialists", "Gap check", "Review notes"]
+        )
 
-        st.markdown("**Gaps**")
-        for g in _as_list(gap_check.get("gaps")) or ["None found."]:
-            st.markdown(f"- {g}")
+        # Report: shown openly ONLY when approved
+        with tab_report:
+            sections = _as_dict(result.get("report"))  # The nine sections, as reviewed (and revised)
+            if approved:
+                _show_report(sections, evidence, report_md, "w8_report")
+            else:
+                # Hidden by default; shown only on request, for debugging
+                st.caption("This draft did not pass the approval checks and is shown only for debugging.")
+                if st.toggle("Show the unapproved draft", key="w8_show_draft"):
+                    _show_report(sections, evidence, report_md, "w8_draft")
 
-        st.markdown("**Conflicts**")
-        for c in _as_list(gap_check.get("conflicts")) or ["None found."]:
-            st.markdown(f"- {c}")
+        # Evidence: one row per record, IDs match the [E#] citations; filter by source type
+        with tab_evidence:
+            rows = [
+                {
+                    "ID": f"E{i}",
+                    "Claim": rec.get("claim", ""),
+                    "Source": rec.get("source", ""),
+                    "Type": str(rec.get("source_type") or "").replace("_", " "),
+                    "Published": rec.get("publication_date") or "Not stated",
+                    "Confidence": rec.get("confidence", ""),
+                    "Link": rec.get("url", ""),
+                }
+                for i, rec in enumerate(evidence, start=1)
+                if isinstance(rec, dict)
+            ]
+            types = sorted({r["Type"] for r in rows if r["Type"]})
+            chosen = st.multiselect("Filter by source type", types, key="vm_type_filter",
+                                    **_supported_kwargs(st.multiselect, placeholder="All source types"))
+            shown = [r for r in rows if not chosen or r["Type"] in chosen]
+            st.caption(f"Showing {len(shown)} of {len(rows)} records from {distinct_sources} documents.")
+            link_column = {"Link": st.column_config.LinkColumn("Link")}  # Clickable source URLs
+            try:
+                # Newer Streamlit: width="stretch" fills the column
+                st.dataframe(shown, hide_index=True, width="stretch", column_config=link_column)
+            except Exception:
+                # Older Streamlit versions only understand use_container_width
+                st.dataframe(shown, hide_index=True, use_container_width=True, column_config=link_column)
 
-    # Evidence: one row per record, IDs match the [E#] citations in the report
-    with tab_evidence:
-        rows = [
-            {
-                "ID": f"E{i}",
-                "Claim": rec.get("claim", ""),
-                "Source": rec.get("source", ""),
-                "Type": str(rec.get("source_type") or "").replace("_", " "),
-                "Published": rec.get("publication_date") or "Not stated",
-                "Confidence": rec.get("confidence", ""),
-                "Link": rec.get("url", ""),
-            }
-            for i, rec in enumerate(evidence, start=1)
-            if isinstance(rec, dict)
-        ]
-        link_column = {"Link": st.column_config.LinkColumn("Link")}  # Clickable source URLs
-        try:
-            # Newer Streamlit: width="stretch" fills the column
-            st.dataframe(rows, hide_index=True, width="stretch", column_config=link_column)
-        except Exception:
-            # Older Streamlit versions only understand use_container_width
-            st.dataframe(rows, hide_index=True, use_container_width=True, column_config=link_column)
+        # Specialists: each role's objective and brief, first pass before the extra pass
+        with tab_specialists:
+            first_pass_objectives = {a.get("objective") for a in _as_list(result.get("assignments"))
+                                     if isinstance(a, dict)}
+
+            def _sort_key(s):
+                extra = s.get("objective") not in first_pass_objectives  # Extra-pass outputs go last
+                role = ROLE_ORDER.index(s["agent"]) if s.get("agent") in ROLE_ORDER else len(ROLE_ORDER)
+                return (extra, role)
+
+            for s in sorted((s for s in specialists if isinstance(s, dict)), key=_sort_key):
+                source_count = len(_as_list(s.get("sources")))
+                label = f"{s.get('agent', 'Specialist')} ({source_count} source{'s' if source_count != 1 else ''})"
+                if s.get("objective") not in first_pass_objectives:
+                    label += ", extra research pass"
+                with st.expander(label):
+                    st.markdown(f"**Objective:** {s.get('objective', '')}")
+                    st.markdown(str(s.get("research") or "").replace("$", "\\$"))
+
+        # Gap check: whether one extra research pass ran, and why
+        with tab_gaps:
+            if result.get("additional_research_performed"):
+                st.info(
+                    f"One extra research pass ran on: {gap_check.get('targeted_question', '')}  \n"
+                    f"It added {result.get('new_evidence_count', 0)} new evidence records."
+                )
+            else:
+                st.write("No extra research pass was needed.")
+
+            st.markdown(f"**Reason:** {gap_check.get('reason') or 'No reason given.'}")
+
+            st.markdown("**Gaps**")
+            for g in _as_list(gap_check.get("gaps")) or ["None found."]:
+                st.markdown(f"- {g}")
+
+            st.markdown("**Conflicts**")
+            for c in _as_list(gap_check.get("conflicts")) or ["None found."]:
+                st.markdown(f"- {c}")
+
+        # Review notes: the reviewer's specific issues and research gaps
+        with tab_review:
+            if result.get("revision_performed"):
+                st.caption("The first draft did not pass, so one controlled revision was made and reviewed again.")
+
+            st.markdown("**Issues**")
+            issues = _as_list(review.get("issues"))
+            if not issues:
+                st.caption("No issues reported.")
+            for issue in issues:
+                with _box():  # One box per issue so they read separately
+                    if isinstance(issue, dict):  # Normal reviewer issues are dicts
+                        category = str(issue.get("category") or "general").replace("_", " ").capitalize()
+                        section = str(issue.get("section") or "overall")
+                        st.markdown(f"**{category}** in {section}")
+                        st.markdown(_md(issue.get("explanation"), evidence))
+                        if issue.get("suggested_fix"):
+                            st.caption(f"Suggested fix: {issue.get('suggested_fix')}")
+                    else:  # Failed reviews return plain-text issues
+                        st.markdown(_md(issue, evidence))
+
+            st.markdown("**Research gaps**")
+            for gap in _as_list(review.get("research_gaps")) or ["None reported."]:
+                st.markdown(f"- {gap}")
+
+            if result.get("revision_performed"):
+                with st.expander("Initial review, before the revision"):
+                    st.json(_as_dict(result.get("initial_review")))
