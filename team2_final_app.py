@@ -1780,7 +1780,7 @@ st.markdown(
     '<div class="vm-appbar"><div class="vm-brand">'
     f'<span class="vm-mark">{_LOGO_SVG}</span>'
     '<span class="vm-name">Verified Market Research</span><span class="vm-env">Prototype</span></div>'
-    '<div class="vm-meta">Team 2 multi-agent research</div></div>',
+    '<div class="vm-meta">Team 2 Multi-Agent Research</div></div>',
     unsafe_allow_html=True,
 )
 

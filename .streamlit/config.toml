@@ -6,4 +6,6 @@ primaryColor = "#43B7A0"
 backgroundColor = "#171E2B"
 secondaryBackgroundColor = "#303D4D"
 textColor = "#DCE4ED"
-font = "sans serif"
+# IBM Plex Sans from Google Fonts, for all of Streamlit's built-in text, headings, and tables
+font = "'IBM Plex Sans':https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap, sans-serif"
+headingFont = "'IBM Plex Sans':https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap, sans-serif"
