@@ -1082,6 +1082,7 @@ REVIEW_SYSTEM_PROMPT = """
 You are the REVIEWER / CRITIC AGENT in a multi-agent business research system.
 Evaluate the draft against the research question and Shared Evidence Store.
 Do not conduct new research and do not silently rewrite the report.
+Be strict: a report that does not answer the question specifically must not pass.
 
 Return ONLY valid JSON:
 {
@@ -1105,6 +1106,21 @@ Return ONLY valid JSON:
   "research_gaps": ["gap that may require more research later"]
 }
 
+Scoring completeness and business_usefulness: the report must answer the research
+question with specific, concrete content drawn from the evidence: named companies,
+products, figures, dates, and direct comparisons. Each of these is a material failure:
+- The executive_summary or key_findings does not directly answer the research question.
+- A core section (key_findings, competitor_comparison, market_industry_trends) consists
+  mostly of statements that the evidence is insufficient, unclear, or does not specify.
+- Any section is only the placeholder "Insufficient evidence found for this section."
+- The report makes general statements (for example "NVIDIA leads the market") where the
+  evidence store contains specific figures, names, or dates that were not used.
+When any of these apply, score completeness and business_usefulness at 5 or lower and
+list each failure as a separate issue naming the section.
+Do not penalize limitations_information_gaps for listing gaps; that is its purpose.
+Never reward a report for specifics the evidence store does not contain. If the
+evidence cannot support a specific answer, the report should fail, not be padded.
+
 Scoring citation_support: every factual claim should carry its own [E#] label directly
 after it. Citations bunched at the end of a paragraph, leaving individual claims without
 an attributable source, are a citation_support issue.
@@ -1113,7 +1129,8 @@ Scoring source_quality: sources are restricted to research papers and formal rep
 Lower the score when key claims rest only on preprints or a single analyst estimate
 without corroboration, or when time-sensitive figures are presented without dates.
 
-PASS only when all six scores are at least 7 and there are no material citation-support issues.
+PASS only when all six scores are at least 7, there are no material citation-support
+issues, and the report answers the research question specifically.
 """.strip()
 
 
