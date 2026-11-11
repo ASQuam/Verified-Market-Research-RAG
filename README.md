@@ -96,8 +96,8 @@ The Streamlit interface shows the pipeline running live:
 ### Setup
 
 ```bash
-git clone <this-repo-url>
-cd <repo-folder>
+git clone https://github.com/tjyank/ELP-Multi-Agent-Team-2
+cd ELP-Multi-Agent-Team-2
 python -m pip install -r requirements_team2.txt
 ```
 
