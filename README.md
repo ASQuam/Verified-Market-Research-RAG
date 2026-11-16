@@ -2,7 +2,7 @@
 
 A multi-agent research system that answers business and market questions using only research papers and formal reports. A supervisor agent splits each question across three specialist agents, their findings become a shared evidence store, and a reviewer agent checks the final report before it is approved. Every claim in the report links back to the source it came from.
 
-Built by Team 2 at the Nittany AI Student Society (NAiSS), Penn State. Team 2 builds the multi-agent architecture; both teams produce the same ten-section report so the two architectures can be compared fairly.
+Built by Team 2 at the Nittany AI Student Society (NAiSS), Penn State. Team 2 consisted primarily of developers Arik Quam and Thomas Yankelevich.
 
 ## What it does
 
